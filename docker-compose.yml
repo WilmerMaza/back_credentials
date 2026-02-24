@@ -1,0 +1,43 @@
+networks:
+  internal:
+    driver: bridge
+
+services:
+  api:
+    build: .
+    image: back-credentials:latest
+    env_file: .env
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped
+    networks:
+      - internal
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "PORT=$${PORT:-3000}; code=$$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$${PORT}/docs || exit 1); [ \"$${code}\" -lt 500 ]"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: "512M"
+        reservations:
+          cpus: "0.25"
+          memory: "256M"
+
+  nginx:
+    image: nginx:alpine
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - internal
+    restart: unless-stopped

@@ -1,0 +1,6 @@
+node_modules
+dist
+.env
+uploads/credentials/*
+!uploads/credentials/.gitkeep
+.DS_Store

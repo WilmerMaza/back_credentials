@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -7,16 +8,67 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Credential {
-  id                 String   @id @default(cuid())
+
+model Person {
+  id                 String       @id @default(cuid())
   fullName           String
-  rank               String
-  identityNumber     String   @unique
-  unit               String
+  typeIdentity       String
+  identityNumber     String       @unique
   birthDate          DateTime
-  enlistmentDate     DateTime
-  institutionalEmail String   @unique
-  imagePath          String
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  institutionalEmail String?      @unique
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  credentials        Credential[]
+  user               User?
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  personId  String?  @unique
+  person    Person?  @relation(fields: [personId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CredentialType {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  name        String
+  description String?
+  createdAt   DateTime     @default(now())
+
+  credentials Credential[]
+}
+
+model Credential {
+  id              String         @id @default(cuid())
+  personId        String
+  credentialTypeId String
+
+  rank            String?
+  unit            String?
+  imagePath       String?
+
+  issueDate       DateTime?
+  expirationDate  DateTime?
+  status          CredentialStatus @default(ACTIVE)
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  person          Person         @relation(fields: [personId], references: [id], onDelete: Cascade)
+  credentialType  CredentialType @relation(fields: [credentialTypeId], references: [id])
+
+  @@index([personId])
+  @@index([credentialTypeId])
+}
+
+enum CredentialStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  SUSPENDED
 }

@@ -20,9 +20,6 @@ export class CredentialResponseDto {
   @ApiProperty({ type: String, format: "date-time" })
   birthDate!: Date;
 
-  @ApiProperty({ type: String, format: "date-time" })
-  enlistmentDate!: Date;
-
   @ApiProperty()
   institutionalEmail!: string;
 
@@ -38,14 +35,13 @@ export class CredentialResponseDto {
   static fromDomain(credential: Credential): CredentialResponseDto {
     return {
       id: credential.id,
-      fullName: credential.fullName,
-      rank: credential.rank,
-      identityNumber: credential.identityNumber,
-      unit: credential.unit,
-      birthDate: credential.birthDate,
-      enlistmentDate: credential.enlistmentDate,
-      institutionalEmail: credential.institutionalEmail,
-      imagePath: credential.imagePath,
+      fullName: credential.person.fullName,
+      rank: credential.rank ?? "",
+      identityNumber: credential.person.identityNumber,
+      unit: credential.unit ?? "",
+      birthDate: credential.person.birthDate,
+      institutionalEmail: credential.person.institutionalEmail ?? "",
+      imagePath: credential.imagePath ?? "",
       createdAt: credential.createdAt,
       updatedAt: credential.updatedAt,
     };

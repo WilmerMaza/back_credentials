@@ -1,13 +1,21 @@
 export interface Credential {
   id: string;
-  fullName: string;
-  rank: string;
-  identityNumber: string;
-  unit: string;
-  birthDate: Date;
-  enlistmentDate: Date;
-  institutionalEmail: string;
-  imagePath: string;
+  person: {
+    fullName: string;
+    typeIdentity: string;
+    identityNumber: string;
+    birthDate: Date;
+    institutionalEmail: string | null;
+  };
+  type: {
+    code: string;
+    name: string;
+  };
+  rank: string | null;
+  unit: string | null;
+  imagePath: string | null;
+  issueDate: Date | null;
+  status: 'ACTIVE' | 'EXPIRED' | 'REVOKED' | 'SUSPENDED';
   createdAt: Date;
   updatedAt: Date;
 }

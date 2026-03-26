@@ -12,6 +12,7 @@ RUN npm ci
 # Build de la aplicación
 FROM deps AS builder
 COPY . .
+RUN npx prisma generate
 # Asegura permisos de ejecución del binario de Nest dentro de node_modules
 RUN chmod +x node_modules/.bin/nest
 RUN npm run build
@@ -26,7 +27,7 @@ ENV NODE_ENV=production
 # Usuario no-root
 RUN addgroup -S nodejs && adduser -S nest -G nodejs
 # Utilidades mínimas para healthcheck/init
-RUN apk add --no-cache dumb-init curl
+RUN apk add --no-cache dumb-init curl openssl
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./

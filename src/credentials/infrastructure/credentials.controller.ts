@@ -7,6 +7,7 @@ import {
   Param,
   Post,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
@@ -18,6 +19,7 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { JwtAuthGuard } from "../../auth/infrastructure/guards/jwt-auth.guard";
 import { CreateCredentialCommand } from "../application/commands/create-credential.command";
 import {
   CreateCredentialDto,
@@ -31,12 +33,13 @@ import { LocalFileService } from "./storage/local-file.service";
 import { multerOptions } from "./storage/multer-options";
 
 @ApiTags("credentials")
+@UseGuards(JwtAuthGuard)
 @Controller("credentials")
 export class CredentialsController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
-    private readonly localFileService: LocalFileService
+    private readonly localFileService: LocalFileService,
   ) {}
 
   @Post()
@@ -46,25 +49,28 @@ export class CredentialsController {
   @UseInterceptors(FileInterceptor("image", multerOptions))
   async create(
     @Body() dto: CreateCredentialDto,
-    @UploadedFile() file: Express.Multer.File
+    @UploadedFile() file: Express.Multer.File,
   ): Promise<CredentialResponseDto> {
     if (!file) {
       throw new BadRequestException("Image is required");
     }
 
     const data: CreateCredentialData = {
-      fullName: dto.fullName,
+      person: {
+        fullName: dto.fullName,
+        typeIdentity: dto.typeIdentity,
+        identityNumber: dto.identityNumber,
+        birthDate: new Date(dto.birthDate),
+        institutionalEmail: dto.institutionalEmail,
+      },
+      credentialTypeCode: dto.credentialTypeCode,
       rank: dto.rank,
-      identityNumber: dto.identityNumber,
       unit: dto.unit,
-      birthDate: new Date(dto.birthDate),
-      enlistmentDate: new Date(dto.enlistmentDate),
-      institutionalEmail: dto.institutionalEmail,
       imagePath: this.localFileService.toStoragePath(file),
     };
 
     const created = await this.commandBus.execute(
-      new CreateCredentialCommand(data)
+      new CreateCredentialCommand(data),
     );
 
     return CredentialResponseDto.fromDomain(created);

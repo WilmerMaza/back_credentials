@@ -1,9 +1,19 @@
-import { Credential } from './credential.entity';
+import { Credential } from "./credential.entity";
 
-export type CreateCredentialData = Omit<
-  Credential,
-  'id' | 'createdAt' | 'updatedAt'
->;
+export interface CreateCredentialData {
+  person: {
+    fullName: string;
+    typeIdentity: string;
+    identityNumber: string;
+    birthDate: Date;
+    institutionalEmail: string;
+  };
+  credentialTypeCode: string;
+  rank: string;
+  unit: string;
+
+  imagePath: string;
+}
 
 export interface CredentialRepository {
   create(data: CreateCredentialData): Promise<Credential>;
@@ -11,4 +21,4 @@ export interface CredentialRepository {
   findAll(): Promise<Credential[]>;
 }
 
-export const CREDENTIAL_REPOSITORY = 'CREDENTIAL_REPOSITORY';
+export const CREDENTIAL_REPOSITORY = "CREDENTIAL_REPOSITORY";

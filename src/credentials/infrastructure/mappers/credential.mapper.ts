@@ -1,17 +1,34 @@
-import { Credential as PrismaCredential } from '@prisma/client';
+import {
+  Credential as PrismaCredential,
+  Person as PrismaPerson,
+  CredentialType as PrismaCredentialType,
+} from '@prisma/client';
 import { Credential } from '../../domain/credential.entity';
 
-export function toDomain(model: PrismaCredential): Credential {
+export type CredentialWithRelations = PrismaCredential & {
+  person: PrismaPerson;
+  credentialType: PrismaCredentialType;
+};
+
+export function toDomain(model: CredentialWithRelations): Credential {
   return {
     id: model.id,
-    fullName: model.fullName,
+    person: {
+      fullName: model.person.fullName,
+      typeIdentity: model.person.typeIdentity,
+      identityNumber: model.person.identityNumber,
+      birthDate: model.person.birthDate,
+      institutionalEmail: model.person.institutionalEmail,
+    },
+    type: {
+      code: model.credentialType.code,
+      name: model.credentialType.name,
+    },
     rank: model.rank,
-    identityNumber: model.identityNumber,
     unit: model.unit,
-    birthDate: model.birthDate,
-    enlistmentDate: model.enlistmentDate,
-    institutionalEmail: model.institutionalEmail,
     imagePath: model.imagePath,
+    issueDate: model.issueDate,
+    status: model.status as any,
     createdAt: model.createdAt,
     updatedAt: model.updatedAt,
   };

@@ -12,10 +12,15 @@ export class CreateCredentialDto {
   @IsNotEmpty()
   rank!: string;
 
-  @ApiProperty({ example: "123456789" })
+  @ApiProperty({ example: '123456789' })
   @IsString()
   @IsNotEmpty()
   identityNumber!: string;
+
+  @ApiProperty({ example: 'CC' })
+  @IsString()
+  @IsNotEmpty()
+  typeIdentity!: string;
 
   @ApiProperty({ example: "Batallon 1" })
   @IsString()
@@ -26,13 +31,14 @@ export class CreateCredentialDto {
   @IsDateString()
   birthDate!: string;
 
-  @ApiProperty({ example: "2010-01-01" })
-  @IsDateString()
-  enlistmentDate!: string;
-
-  @ApiProperty({ example: "juan.perez@mil.edu" })
+  @ApiProperty({ example: 'juan.perez@mil.edu' })
   @IsEmail()
   institutionalEmail!: string;
+
+  @ApiProperty({ example: 'MILITARY' })
+  @IsString()
+  @IsNotEmpty()
+  credentialTypeCode!: string;
 }
 
 export class CreateCredentialRequestDto extends CreateCredentialDto {

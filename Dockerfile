@@ -28,10 +28,11 @@ ENV NODE_ENV=production
 RUN addgroup -S nodejs && adduser -S nest -G nodejs
 # Utilidades mínimas para healthcheck/init
 RUN apk add --no-cache dumb-init curl openssl
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/prisma ./prisma
+COPY --from=builder --chown=nest:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nest:nodejs /app/dist ./dist
+COPY --from=builder --chown=nest:nodejs /app/package*.json ./
+COPY --from=builder --chown=nest:nodejs /app/prisma ./prisma
+
 USER nest
 EXPOSE 3000
 

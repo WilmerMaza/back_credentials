@@ -9,7 +9,11 @@ services:
     env_file: .env
     environment:
       NODE_ENV: production
+    # 🚀 Sincronización segura de base de datos al iniciar
+    command: >
+      sh -c "npx prisma migrate deploy && node dist/main.js"
     restart: unless-stopped
+
     ports:
       - "3000:3000"
     networks:

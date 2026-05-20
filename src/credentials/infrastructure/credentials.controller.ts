@@ -6,6 +6,7 @@ import {
   NotFoundException,
   Param,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -87,9 +88,24 @@ export class CredentialsController {
   }
 
   @Get()
-  @ApiOkResponse({ type: [CredentialResponseDto] })
-  async list(): Promise<CredentialResponseDto[]> {
-    const items = await this.queryBus.execute(new ListCredentialsQuery());
-    return items.map((item: any) => CredentialResponseDto.fromDomain(item));
+  @ApiOkResponse({ description: 'Paginated list of credentials' })
+  async list(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const parsedPage = parseInt(page as string, 10);
+    const parsedLimit = parseInt(limit as string, 10);
+    const pageNumber = isNaN(parsedPage) ? 1 : parsedPage;
+    const limitNumber = isNaN(parsedLimit) ? 10 : parsedLimit;
+    
+    const result = await this.queryBus.execute(new ListCredentialsQuery(pageNumber, limitNumber));
+    
+    return {
+      data: result.data.map((item: any) => CredentialResponseDto.fromDomain(item)),
+      total: result.total,
+      page: pageNumber,
+      limit: limitNumber,
+      totalPages: Math.ceil(result.total / limitNumber),
+    };
   }
 }

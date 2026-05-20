@@ -33,6 +33,9 @@ COPY --from=builder --chown=nest:nodejs /app/dist ./dist
 COPY --from=builder --chown=nest:nodejs /app/package*.json ./
 COPY --from=builder --chown=nest:nodejs /app/prisma ./prisma
 
+# Asegurar permisos de escritura para el usuario nest y crear el directorio de uploads
+RUN mkdir -p /app/uploads && chown -R nest:nodejs /app
+
 USER nest
 EXPOSE 3000
 

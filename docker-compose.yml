@@ -16,6 +16,8 @@ services:
 
     ports:
       - "3000:3000"
+    volumes:
+      - uploads-data:/app/uploads
     networks:
       - internal
     healthcheck:
@@ -47,3 +49,6 @@ services:
 networks:
   internal:
     driver: bridge
+
+volumes:
+  uploads-data:

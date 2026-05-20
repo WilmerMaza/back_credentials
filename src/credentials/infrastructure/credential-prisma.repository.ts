@@ -58,14 +58,25 @@ export class CredentialPrismaRepository implements CredentialRepository {
     return found ? toDomain(found as any) : null;
   }
 
-  async findAll(): Promise<Credential[]> {
-    const items = await this.prisma.credential.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        person: true,
-        credentialType: true,
-      },
-    });
-    return items.map((item) => toDomain(item as any));
+  async findAll(page: number = 1, limit: number = 10): Promise<{ data: Credential[], total: number }> {
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      this.prisma.credential.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          person: true,
+          credentialType: true,
+        },
+      }),
+      this.prisma.credential.count(),
+    ]);
+
+    return {
+      data: items.map((item) => toDomain(item as any)),
+      total,
+    };
   }
 }

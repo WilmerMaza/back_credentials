@@ -9,8 +9,8 @@ export interface CreateCredentialData {
     institutionalEmail: string;
   };
   credentialTypeCode: string;
-  rank: string;
-  unit: string;
+  rank?: string | null;
+  unit?: string | null;
 
   imagePath: string;
 }
@@ -18,7 +18,7 @@ export interface CreateCredentialData {
 export interface CredentialRepository {
   create(data: CreateCredentialData): Promise<Credential>;
   findById(id: string): Promise<Credential | null>;
-  findAll(): Promise<Credential[]>;
+  findAll(page?: number, limit?: number): Promise<{ data: Credential[], total: number }>;
 }
 
 export const CREDENTIAL_REPOSITORY = "CREDENTIAL_REPOSITORY";

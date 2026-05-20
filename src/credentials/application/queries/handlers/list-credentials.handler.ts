@@ -16,7 +16,7 @@ export class ListCredentialsHandler
     private readonly repository: CredentialRepository,
   ) {}
 
-  async execute(query: ListCredentialsQuery): Promise<Credential[]> {
-    return this.repository.findAll();
+  async execute(query: ListCredentialsQuery): Promise<{ data: Credential[], total: number }> {
+    return this.repository.findAll(query.page, query.limit);
   }
 }

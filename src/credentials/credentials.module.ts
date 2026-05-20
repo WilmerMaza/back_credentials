@@ -7,6 +7,7 @@ import { ListCredentialsHandler } from './application/queries/handlers/list-cred
 import { CREDENTIAL_REPOSITORY } from './domain/credential.repository';
 import { CredentialPrismaRepository } from './infrastructure/credential-prisma.repository';
 import { CredentialsController } from './infrastructure/credentials.controller';
+import { UploadsController } from './infrastructure/uploads.controller';
 import { LocalFileService } from './infrastructure/storage/local-file.service';
 
 const CommandHandlers = [CreateCredentialHandler];
@@ -14,7 +15,7 @@ const QueryHandlers = [GetCredentialHandler, ListCredentialsHandler];
 
 @Module({
   imports: [CqrsModule, PrismaModule],
-  controllers: [CredentialsController],
+  controllers: [CredentialsController, UploadsController],
   providers: [
     LocalFileService,
     CredentialPrismaRepository,

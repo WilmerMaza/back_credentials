@@ -13,6 +13,11 @@ export interface Credential {
   };
   rank: string | null;
   unit: string | null;
+  details: string | null;
+  force: string | null;
+  sport: string | null;
+  course: string | null;
+  grades: string | null;
   imagePath: string | null;
   issueDate: Date | null;
   status: 'ACTIVE' | 'EXPIRED' | 'REVOKED' | 'SUSPENDED';

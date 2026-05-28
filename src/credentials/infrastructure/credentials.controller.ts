@@ -67,6 +67,11 @@ export class CredentialsController {
       credentialTypeCode: dto.credentialTypeCode,
       rank: dto.rank,
       unit: dto.unit,
+      details: dto.details,
+      force: dto.force,
+      sport: dto.sport,
+      course: dto.course,
+      grades: dto.grades,
       imagePath: this.localFileService.toStoragePath(file),
     };
 

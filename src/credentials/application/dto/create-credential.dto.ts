@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsDateString, IsEmail, IsNotEmpty, IsOptional, IsString } from "class-validator";
 
 export class CreateCredentialDto {
@@ -26,6 +26,31 @@ export class CreateCredentialDto {
   @IsString()
   @IsOptional()
   unit?: string;
+
+  @ApiPropertyOptional({ example: "Detalle adicional de la credencial" })
+  @IsString()
+  @IsOptional()
+  details?: string;
+
+  @ApiPropertyOptional({ example: "Ejercito" })
+  @IsString()
+  @IsOptional()
+  force?: string;
+
+  @ApiPropertyOptional({ example: "Futbol" })
+  @IsString()
+  @IsOptional()
+  sport?: string;
+
+  @ApiPropertyOptional({ example: "Curso de ascenso" })
+  @IsString()
+  @IsOptional()
+  course?: string;
+
+  @ApiPropertyOptional({ example: "Grado 1" })
+  @IsString()
+  @IsOptional()
+  grades?: string;
 
   @ApiProperty({ example: "1990-01-01" })
   @IsDateString()

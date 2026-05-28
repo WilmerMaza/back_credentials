@@ -50,6 +50,11 @@ model Credential {
 
   rank            String?
   unit            String?
+  details         String?
+  force           String?
+  sport           String?
+  course          String?
+  grades          String?
   imagePath       String?
 
   issueDate       DateTime?

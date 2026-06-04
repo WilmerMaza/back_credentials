@@ -3,11 +3,17 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as cookieParser from 'cookie-parser';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const maxUploadMb = parseInt(process.env.MAX_PDF_SIZE_MB ?? '25', 10);
+  const bodyLimit = `${maxUploadMb}mb`;
 
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+
+  app.use(json({ limit: bodyLimit }));
+  app.use(urlencoded({ extended: true, limit: bodyLimit }));
   app.use(cookieParser());
   app.enableCors({
     origin: true,

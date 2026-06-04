@@ -16,6 +16,11 @@ export class CredentialPrismaRepository implements CredentialRepository {
       data: {
         rank: data.rank,
         unit: data.unit,
+        details: data.details,
+        force: data.force,
+        sport: data.sport,
+        course: data.course,
+        grades: data.grades,
         imagePath: data.imagePath,
         person: {
           connectOrCreate: {

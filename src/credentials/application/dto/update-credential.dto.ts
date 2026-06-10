@@ -2,12 +2,21 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsDateString,
   IsEmail,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
 } from "class-validator";
 
-export class CreateCredentialDto {
+const CREDENTIAL_STATUSES = [
+  "ACTIVE",
+  "PENDING",
+  "EXPIRED",
+  "REVOKED",
+  "SUSPENDED",
+] as const;
+
+export class UpdateCredentialDto {
   @ApiProperty({ example: "Juan" })
   @IsString()
   @IsNotEmpty()
@@ -63,9 +72,17 @@ export class CreateCredentialDto {
   @IsDateString()
   @IsOptional()
   expirationDate?: string;
+
+  @ApiPropertyOptional({
+    enum: CREDENTIAL_STATUSES,
+    example: "ACTIVE",
+  })
+  @IsOptional()
+  @IsIn(CREDENTIAL_STATUSES)
+  status?: string;
 }
 
-export class CreateCredentialRequestDto extends CreateCredentialDto {
-  @ApiProperty({ type: "string", format: "binary" })
-  image: any;
+export class UpdateCredentialRequestDto extends UpdateCredentialDto {
+  @ApiPropertyOptional({ type: "string", format: "binary" })
+  image?: any;
 }

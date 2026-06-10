@@ -32,6 +32,8 @@ async function main() {
     // 1. Create a dummy Person
     const person = await prisma.person.create({
       data: {
+        firstName: `Test`,
+        lastName: `Person ${i + 1}`,
         fullName: `Test Person ${i + 1} (${randomSuffix})`,
         typeIdentity: 'CC',
         identityNumber: identityNumber,
@@ -45,12 +47,16 @@ async function main() {
       data: {
         personId: person.id,
         credentialTypeId: credentialType.id,
-        rank: 'Test Rank',
-        unit: 'Test Unit',
+        metadata: {
+          rank: "Test Rank",
+          unit: "Test Unit",
+        },
         issueDate: new Date(),
-        expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)), // Expires in 1 year
-        status: CredentialStatus.ACTIVE
-      }
+        expirationDate: new Date(
+          new Date().setFullYear(new Date().getFullYear() + 1),
+        ),
+        status: CredentialStatus.ACTIVE,
+      },
     });
 
     console.log(`[${i + 1}/${totalToSeed}] Created credential ${credential.id} for ${person.fullName}`);

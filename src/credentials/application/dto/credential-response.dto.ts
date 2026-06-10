@@ -1,36 +1,33 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Credential } from "../../domain/credential.entity";
+import { CredentialMetadata } from "../../domain/credential-type-schema";
 
 export class CredentialResponseDto {
   @ApiProperty()
   id!: string;
 
   @ApiProperty()
-  fullName!: string;
+  firstName!: string;
 
   @ApiProperty()
-  rank!: string;
+  lastName!: string;
+
+  @ApiProperty({ description: "Nombre completo calculado y persistido en BD" })
+  fullName!: string;
 
   @ApiProperty()
   identityNumber!: string;
 
   @ApiProperty()
-  unit!: string;
+  typeIdentity!: string;
 
   @ApiPropertyOptional()
   details?: string;
 
-  @ApiPropertyOptional()
-  force?: string;
-
-  @ApiPropertyOptional()
-  sport?: string;
-
-  @ApiPropertyOptional()
-  course?: string;
-
-  @ApiPropertyOptional()
-  grades?: string;
+  @ApiProperty({
+    example: { rank: "Capitán", unit: "Batallón 12", force: "Ejército" },
+  })
+  metadata!: CredentialMetadata;
 
   @ApiProperty({ type: String, format: "date-time" })
   birthDate!: Date;
@@ -47,6 +44,14 @@ export class CredentialResponseDto {
   @ApiProperty()
   imagePath!: string;
 
+  @ApiProperty({
+    enum: ["ACTIVE", "PENDING", "EXPIRED", "REVOKED", "SUSPENDED"],
+  })
+  status!: string;
+
+  @ApiPropertyOptional({ type: String, format: "date-time" })
+  expirationDate?: Date;
+
   @ApiProperty({ type: String, format: "date-time" })
   createdAt!: Date;
 
@@ -56,20 +61,20 @@ export class CredentialResponseDto {
   static fromDomain(credential: Credential): CredentialResponseDto {
     return {
       id: credential.id,
+      firstName: credential.person.firstName,
+      lastName: credential.person.lastName,
       fullName: credential.person.fullName,
-      rank: credential.rank ?? "",
       identityNumber: credential.person.identityNumber,
-      unit: credential.unit ?? "",
+      typeIdentity: credential.person.typeIdentity,
       details: credential.details ?? undefined,
-      force: credential.force ?? undefined,
-      sport: credential.sport ?? undefined,
-      course: credential.course ?? undefined,
-      grades: credential.grades ?? undefined,
+      metadata: credential.metadata,
       birthDate: credential.person.birthDate,
       institutionalEmail: credential.person.institutionalEmail ?? "",
       credentialTypeCode: credential.type.code,
       credentialTypeName: credential.type.name,
       imagePath: credential.imagePath ?? "",
+      status: credential.status,
+      expirationDate: credential.expirationDate ?? undefined,
       createdAt: credential.createdAt,
       updatedAt: credential.updatedAt,
     };

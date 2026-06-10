@@ -1,19 +1,31 @@
 import {
   Credential as PrismaCredential,
-  Person as PrismaPerson,
   CredentialType as PrismaCredentialType,
-} from '@prisma/client';
-import { Credential } from '../../domain/credential.entity';
+  Person as PrismaPerson,
+  Prisma,
+} from "@prisma/client";
+import { Credential, CredentialType } from "../../domain/credential.entity";
+import { CredentialMetadata } from "../../domain/credential-type-schema";
 
 export type CredentialWithRelations = PrismaCredential & {
   person: PrismaPerson;
   credentialType: PrismaCredentialType;
 };
 
+export function toMetadata(value: Prisma.JsonValue): CredentialMetadata {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return value as CredentialMetadata;
+}
+
 export function toDomain(model: CredentialWithRelations): Credential {
   return {
     id: model.id,
     person: {
+      firstName: model.person.firstName,
+      lastName: model.person.lastName,
       fullName: model.person.fullName,
       typeIdentity: model.person.typeIdentity,
       identityNumber: model.person.identityNumber,
@@ -23,18 +35,26 @@ export function toDomain(model: CredentialWithRelations): Credential {
     type: {
       code: model.credentialType.code,
       name: model.credentialType.name,
+      schema: model.credentialType.schema as Record<string, unknown>,
     },
-    rank: model.rank,
-    unit: model.unit,
     details: model.details,
-    force: model.force,
-    sport: model.sport,
-    course: model.course,
-    grades: model.grades,
+    metadata: toMetadata(model.metadata),
     imagePath: model.imagePath,
     issueDate: model.issueDate,
-    status: model.status as any,
+    expirationDate: model.expirationDate,
+    status: model.status as Credential["status"],
     createdAt: model.createdAt,
     updatedAt: model.updatedAt,
+  };
+}
+
+export function toCredentialType(model: PrismaCredentialType): CredentialType {
+  return {
+    id: model.id,
+    code: model.code,
+    name: model.name,
+    description: model.description,
+    schema: model.schema as Record<string, unknown>,
+    createdAt: model.createdAt,
   };
 }

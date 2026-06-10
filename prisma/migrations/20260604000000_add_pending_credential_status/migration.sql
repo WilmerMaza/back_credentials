@@ -1,0 +1,1 @@
+ALTER TYPE "CredentialStatus" ADD VALUE IF NOT EXISTS 'PENDING';

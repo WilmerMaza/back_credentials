@@ -5,6 +5,7 @@ import {
   Get,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   UploadedFile,
@@ -20,16 +21,26 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { normalizePersonData } from "../../common/utils/person-data.normalizer";
 import { JwtAuthGuard } from "../../auth/infrastructure/guards/jwt-auth.guard";
 import { CreateCredentialCommand } from "../application/commands/create-credential.command";
+import { UpdateCredentialCommand } from "../application/commands/update-credential.command";
 import {
   CreateCredentialDto,
   CreateCredentialRequestDto,
 } from "../application/dto/create-credential.dto";
+import {
+  UpdateCredentialDto,
+  UpdateCredentialRequestDto,
+} from "../application/dto/update-credential.dto";
 import { CredentialResponseDto } from "../application/dto/credential-response.dto";
 import { GetCredentialQuery } from "../application/queries/get-credential.query";
 import { ListCredentialsQuery } from "../application/queries/list-credentials.query";
-import { CreateCredentialData } from "../domain/credential.repository";
+import {
+  CreateCredentialData,
+  UpdateCredentialData,
+} from "../domain/credential.repository";
+import { CredentialMetadata } from "../domain/credential-type-schema";
 import { LocalFileService } from "./storage/local-file.service";
 import { multerOptions } from "./storage/multer-options";
 
@@ -56,23 +67,26 @@ export class CredentialsController {
       throw new BadRequestException("Image is required");
     }
 
+    const normalizedPerson = normalizePersonData({
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      typeIdentity: dto.typeIdentity,
+      identityNumber: dto.identityNumber,
+      institutionalEmail: dto.institutionalEmail,
+    });
+
     const data: CreateCredentialData = {
       person: {
-        fullName: dto.fullName,
-        typeIdentity: dto.typeIdentity,
-        identityNumber: dto.identityNumber,
+        ...normalizedPerson,
         birthDate: new Date(dto.birthDate),
-        institutionalEmail: dto.institutionalEmail,
       },
-      credentialTypeCode: dto.credentialTypeCode,
-      rank: dto.rank,
-      unit: dto.unit,
-      details: dto.details,
-      force: dto.force,
-      sport: dto.sport,
-      course: dto.course,
-      grades: dto.grades,
+      credentialTypeCode: dto.credentialTypeCode.trim().toLowerCase(),
+      details: dto.details?.trim() || undefined,
+      metadata: this.parseMetadata(dto.metadata),
       imagePath: this.localFileService.toStoragePath(file),
+      expirationDate: dto.expirationDate
+        ? new Date(dto.expirationDate)
+        : undefined,
     };
 
     const created = await this.commandBus.execute(
@@ -80,6 +94,46 @@ export class CredentialsController {
     );
 
     return CredentialResponseDto.fromDomain(created);
+  }
+
+  @Patch(":id")
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({ type: UpdateCredentialRequestDto })
+  @ApiOkResponse({ type: CredentialResponseDto })
+  @UseInterceptors(FileInterceptor("image", multerOptions))
+  async update(
+    @Param("id") id: string,
+    @Body() dto: UpdateCredentialDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ): Promise<CredentialResponseDto> {
+    const normalizedPerson = normalizePersonData({
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      typeIdentity: dto.typeIdentity,
+      identityNumber: dto.identityNumber,
+      institutionalEmail: dto.institutionalEmail,
+    });
+
+    const data: UpdateCredentialData = {
+      person: {
+        ...normalizedPerson,
+        birthDate: new Date(dto.birthDate),
+      },
+      credentialTypeCode: dto.credentialTypeCode.trim().toLowerCase(),
+      details: dto.details?.trim() || undefined,
+      metadata: this.parseMetadata(dto.metadata),
+      imagePath: file ? this.localFileService.toStoragePath(file) : undefined,
+      expirationDate: dto.expirationDate
+        ? new Date(dto.expirationDate)
+        : undefined,
+      status: dto.status?.trim().toUpperCase(),
+    };
+
+    const updated = await this.commandBus.execute(
+      new UpdateCredentialCommand(id, data),
+    );
+
+    return CredentialResponseDto.fromDomain(updated);
   }
 
   @Get(":id")
@@ -93,24 +147,58 @@ export class CredentialsController {
   }
 
   @Get()
-  @ApiOkResponse({ description: 'Paginated list of credentials' })
+  @ApiOkResponse({
+    description: "Paginated list of credentials with status summary",
+    schema: {
+      example: {
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 10,
+        totalPages: 0,
+        summary: { activas: 0, inactivas: 0, pendientes: 0 },
+      },
+    },
+  })
   async list(
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
   ) {
     const parsedPage = parseInt(page as string, 10);
     const parsedLimit = parseInt(limit as string, 10);
     const pageNumber = isNaN(parsedPage) ? 1 : parsedPage;
     const limitNumber = isNaN(parsedLimit) ? 10 : parsedLimit;
-    
-    const result = await this.queryBus.execute(new ListCredentialsQuery(pageNumber, limitNumber));
-    
+
+    const result = await this.queryBus.execute(
+      new ListCredentialsQuery(pageNumber, limitNumber),
+    );
+
     return {
-      data: result.data.map((item: any) => CredentialResponseDto.fromDomain(item)),
+      data: result.data.map((item: any) =>
+        CredentialResponseDto.fromDomain(item),
+      ),
       total: result.total,
       page: pageNumber,
       limit: limitNumber,
       totalPages: Math.ceil(result.total / limitNumber),
+      summary: result.summary,
     };
+  }
+
+  private parseMetadata(raw?: string): CredentialMetadata {
+    if (!raw?.trim()) {
+      return {};
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("metadata debe ser un objeto JSON");
+      }
+
+      return parsed as CredentialMetadata;
+    } catch {
+      throw new BadRequestException("metadata debe ser un JSON válido");
+    }
   }
 }

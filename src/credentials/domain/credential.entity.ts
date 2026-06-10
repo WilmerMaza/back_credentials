@@ -1,6 +1,10 @@
+import { CredentialMetadata } from "./credential-type-schema";
+
 export interface Credential {
   id: string;
   person: {
+    firstName: string;
+    lastName: string;
     fullName: string;
     typeIdentity: string;
     identityNumber: string;
@@ -10,17 +14,23 @@ export interface Credential {
   type: {
     code: string;
     name: string;
+    schema?: Record<string, unknown>;
   };
-  rank: string | null;
-  unit: string | null;
   details: string | null;
-  force: string | null;
-  sport: string | null;
-  course: string | null;
-  grades: string | null;
+  metadata: CredentialMetadata;
   imagePath: string | null;
   issueDate: Date | null;
-  status: 'ACTIVE' | 'EXPIRED' | 'REVOKED' | 'SUSPENDED';
+  expirationDate: Date | null;
+  status: "ACTIVE" | "PENDING" | "EXPIRED" | "REVOKED" | "SUSPENDED";
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface CredentialType {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  schema: Record<string, unknown>;
+  createdAt: Date;
 }

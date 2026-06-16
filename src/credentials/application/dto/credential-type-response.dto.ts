@@ -8,7 +8,7 @@ export class CredentialTypeResponseDto {
   @ApiProperty({ example: "militar" })
   code!: string;
 
-  @ApiProperty({ example: "Personal Militar" })
+  @ApiProperty({ example: "Militar" })
   name!: string;
 
   @ApiPropertyOptional()
@@ -18,10 +18,38 @@ export class CredentialTypeResponseDto {
     example: {
       fields: [
         {
-          name: "rank",
-          label: "Rango",
-          type: "text",
+          name: "force",
+          label: "Fuerza",
+          type: "select",
           required: true,
+          options: ["armada", "ejercito", "fuerza_aerea"],
+          optionLabels: {
+            armada: "Armada",
+            ejercito: "Ejército",
+            fuerza_aerea: "Fuerza Aérea",
+          },
+        },
+        {
+          name: "category",
+          label: "Categoría",
+          type: "select",
+          required: true,
+          dependsOn: "force",
+          optionsByParent: {
+            ejercito: ["ArmyOfficer", "ArmySubofficer", "IMP"],
+          },
+        },
+        {
+          name: "grades",
+          label: "Grado",
+          type: "select",
+          required: true,
+          dependsOn: "category",
+          hiddenWhen: { field: "category", values: ["IMP"] },
+          autoValueWhen: {
+            field: "category",
+            values: { IMP: "Infante de marina profesional" },
+          },
         },
       ],
     },

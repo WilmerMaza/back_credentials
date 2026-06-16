@@ -6,6 +6,7 @@ import {
 } from "@prisma/client";
 import { Credential, CredentialType } from "../../domain/credential.entity";
 import { CredentialMetadata } from "../../domain/credential-type-schema";
+import { normalizeLegacyOutput } from "../../application/services/metadata-legacy.normalizer";
 
 export type CredentialWithRelations = PrismaCredential & {
   person: PrismaPerson;
@@ -38,7 +39,7 @@ export function toDomain(model: CredentialWithRelations): Credential {
       schema: model.credentialType.schema as Record<string, unknown>,
     },
     details: model.details,
-    metadata: toMetadata(model.metadata),
+    metadata: normalizeLegacyOutput(toMetadata(model.metadata)),
     imagePath: model.imagePath,
     issueDate: model.issueDate,
     expirationDate: model.expirationDate,

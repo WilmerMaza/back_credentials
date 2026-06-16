@@ -1,10 +1,12 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import {
+  CredentialFieldOptionGroup,
   CredentialFieldSchema,
   CredentialFieldType,
   CredentialMetadata,
   CredentialTypeSchema,
 } from "../../domain/credential-type-schema";
+import { normalizeLegacyInput } from "./metadata-legacy.normalizer";
 
 const SUPPORTED_TYPES: CredentialFieldType[] = [
   "text",
@@ -25,29 +27,41 @@ export class MetadataSchemaValidator {
     metadata: CredentialMetadata,
   ): CredentialMetadata {
     const fields = schema?.fields ?? [];
+    const input = normalizeLegacyInput(metadata);
     const errors: string[] = [];
     const normalized: CredentialMetadata = {};
 
     for (const field of fields) {
-      this.assertValidFieldDefinition(field, errors);
-      const rawValue = metadata[field.name];
-      const isEmpty =
-        rawValue === undefined ||
-        rawValue === null ||
-        rawValue === "" ||
-        (Array.isArray(rawValue) && rawValue.length === 0);
+      this.assertValidFieldDefinition(field, fields, errors);
 
-      if (field.required && isEmpty) {
+      if (this.isHidden(field, normalized)) {
+        this.applyAutoValueOrValidate(field, input[field.name], normalized, errors);
+        continue;
+      }
+
+      const autoValue = this.resolveAutoValue(field, normalized);
+      const rawValue = input[field.name];
+
+      if (autoValue !== undefined) {
+        this.applyAutoValueOrValidate(field, rawValue, normalized, errors, autoValue);
+        continue;
+      }
+
+      if (field.required && this.isEmpty(rawValue)) {
         errors.push(`El campo "${field.label}" es requerido`);
         continue;
       }
 
-      if (isEmpty) {
+      if (this.isEmpty(rawValue)) {
         continue;
       }
 
       try {
-        normalized[field.name] = this.validateFieldValue(field, rawValue);
+        normalized[field.name] = this.validateFieldValue(
+          field,
+          rawValue,
+          normalized,
+        );
       } catch (error: unknown) {
         const message =
           error instanceof Error ? error.message : "Valor inválido";
@@ -67,6 +81,7 @@ export class MetadataSchemaValidator {
 
   private assertValidFieldDefinition(
     field: CredentialFieldSchema,
+    fields: CredentialFieldSchema[],
     errors: string[],
   ): void {
     if (!field.name?.trim()) {
@@ -79,11 +94,147 @@ export class MetadataSchemaValidator {
         `El campo "${field.name}" usa un type no soportado: ${field.type}`,
       );
     }
+
+    const fieldNames = new Set(fields.map((item) => item.name));
+    const fieldIndex = fields.findIndex((item) => item.name === field.name);
+    const previousFields = new Set(
+      fields.slice(0, fieldIndex).map((item) => item.name),
+    );
+
+    if (field.dependsOn && !previousFields.has(field.dependsOn)) {
+      errors.push(
+        `El campo "${field.name}" depende de "${field.dependsOn}", que debe definirse antes en el schema`,
+      );
+    }
+
+    if (field.hiddenWhen && !fieldNames.has(field.hiddenWhen.field)) {
+      errors.push(
+        `El campo "${field.name}" referencia hiddenWhen.field inexistente: ${field.hiddenWhen.field}`,
+      );
+    }
+
+    if (field.autoValueWhen && !fieldNames.has(field.autoValueWhen.field)) {
+      errors.push(
+        `El campo "${field.name}" referencia autoValueWhen.field inexistente: ${field.autoValueWhen.field}`,
+      );
+    }
+  }
+
+  private applyAutoValueOrValidate(
+    field: CredentialFieldSchema,
+    rawValue: unknown,
+    normalized: CredentialMetadata,
+    errors: string[],
+    autoValue?: string,
+  ): void {
+    const resolvedAutoValue =
+      autoValue ?? this.resolveAutoValue(field, normalized);
+
+    if (resolvedAutoValue === undefined) {
+      if (field.required) {
+        errors.push(`El campo "${field.label}" es requerido`);
+      }
+      return;
+    }
+
+    if (this.isEmpty(rawValue)) {
+      normalized[field.name] = resolvedAutoValue;
+      return;
+    }
+
+    const value = String(rawValue).trim();
+    if (value !== resolvedAutoValue) {
+      errors.push(
+        `${field.label}: el valor no coincide con la regla automática del formulario`,
+      );
+      return;
+    }
+
+    normalized[field.name] = resolvedAutoValue;
+  }
+
+  private isHidden(
+    field: CredentialFieldSchema,
+    metadata: CredentialMetadata,
+  ): boolean {
+    if (!field.hiddenWhen) {
+      return false;
+    }
+
+    const parentValue = metadata[field.hiddenWhen.field];
+    if (parentValue === undefined || parentValue === null) {
+      return false;
+    }
+
+    return field.hiddenWhen.values.includes(String(parentValue));
+  }
+
+  private resolveAutoValue(
+    field: CredentialFieldSchema,
+    metadata: CredentialMetadata,
+  ): string | undefined {
+    if (!field.autoValueWhen) {
+      return undefined;
+    }
+
+    const parentValue = metadata[field.autoValueWhen.field];
+    if (parentValue === undefined || parentValue === null) {
+      return undefined;
+    }
+
+    return field.autoValueWhen.values[String(parentValue)];
+  }
+
+  private resolveAllowedOptions(
+    field: CredentialFieldSchema,
+    metadata: CredentialMetadata,
+  ): string[] {
+    if (field.dependsOn) {
+      const parentValue = metadata[field.dependsOn];
+      if (
+        parentValue === undefined ||
+        parentValue === null ||
+        parentValue === ""
+      ) {
+        return [];
+      }
+
+      const parentKey = String(parentValue);
+      const groups = field.optionGroupsByParent?.[parentKey];
+      if (groups?.length) {
+        return this.flattenOptionGroups(groups);
+      }
+
+      const options = field.optionsByParent?.[parentKey];
+      if (options?.length) {
+        return options;
+      }
+
+      return [];
+    }
+
+    return field.options ?? [];
+  }
+
+  private flattenOptionGroups(groups: CredentialFieldOptionGroup[]): string[] {
+    return groups.flatMap((group) =>
+      group.options.map((option) => option.value),
+    );
+  }
+
+  private isEmpty(rawValue: unknown): boolean {
+    return (
+      rawValue === undefined ||
+      rawValue === null ||
+      rawValue === "" ||
+      (Array.isArray(rawValue) && rawValue.length === 0)
+    );
   }
 
   private validateFieldValue(
     field: CredentialFieldSchema,
     rawValue: unknown,
+    metadata: CredentialMetadata,
   ): unknown {
     switch (field.type) {
       case "boolean":
@@ -96,9 +247,9 @@ export class MetadataSchemaValidator {
         return this.validateEmail(rawValue, field);
       case "select":
       case "radio":
-        return this.validateOption(rawValue, field);
+        return this.validateOption(rawValue, field, metadata);
       case "checkbox":
-        return this.validateCheckbox(rawValue, field);
+        return this.validateCheckbox(rawValue, field, metadata);
       case "textarea":
       case "text":
       default:
@@ -172,12 +323,21 @@ export class MetadataSchemaValidator {
   private validateOption(
     rawValue: unknown,
     field: CredentialFieldSchema,
+    metadata: CredentialMetadata,
   ): string {
     const value = String(rawValue).trim();
-    const options = field.options ?? [];
+    const options = this.resolveAllowedOptions(field, metadata);
 
     if (options.length > 0 && !options.includes(value)) {
-      throw new Error(`debe ser una de las opciones permitidas`);
+      throw new Error("debe ser una de las opciones permitidas");
+    }
+
+    if (
+      options.length === 0 &&
+      field.dependsOn &&
+      field.required !== false
+    ) {
+      throw new Error("no hay opciones válidas para la selección actual");
     }
 
     return value;
@@ -186,11 +346,12 @@ export class MetadataSchemaValidator {
   private validateCheckbox(
     rawValue: unknown,
     field: CredentialFieldSchema,
+    metadata: CredentialMetadata,
   ): string[] {
     const values = Array.isArray(rawValue)
       ? rawValue.map((item) => String(item).trim())
       : [String(rawValue).trim()];
-    const options = field.options ?? [];
+    const options = this.resolveAllowedOptions(field, metadata);
 
     if (options.length > 0) {
       const invalid = values.filter((value) => !options.includes(value));

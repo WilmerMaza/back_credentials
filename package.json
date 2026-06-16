@@ -11,7 +11,9 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "seed:credentials": "node --require ts-node/register prisma/seed-credentials.ts",
-    "seed:credential-types": "node --require ts-node/register prisma/seed-credential-types.ts"
+    "seed:credential-types": "node --require ts-node/register prisma/seed-credential-types.ts",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@azure/identity": "^4.13.1",
@@ -40,6 +42,7 @@
     "@nestjs/cli": "^10.0.0",
     "@nestjs/schematics": "^10.0.0",
     "@nestjs/testing": "^10.0.0",
+    "@types/jest": "^29.5.14",
     "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^4.17.17",
@@ -48,7 +51,9 @@
     "@types/nodemailer": "^8.0.0",
     "@types/passport": "^1.0.17",
     "@types/passport-jwt": "^4.0.1",
+    "jest": "^29.7.0",
     "prisma": "^5.0.0",
+    "ts-jest": "^29.2.5",
     "ts-node": "^10.9.1",
     "typescript": "^5.1.3"
   }

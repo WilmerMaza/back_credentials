@@ -1,38 +1,25 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
+/**
+ * Seed de tipos de credencial.
+ *
+ * Los schemas viven en src/credentials/domain/credential-type-schemas.ts
+ * con comentarios por campo. Ver docs/CREDENTIALS_METADATA.md.
+ *
+ * Ejecutar: npm run seed:credential-types
+ */
+import {
+  cadetesCredentialTypeSchema,
+  militarCredentialTypeSchema,
+} from "../src/credentials/domain/credential-type-schemas";
 
 const prisma = new PrismaClient();
 
 const credentialTypes = [
   {
     code: "militar",
-    name: "Personal Militar",
-    description: "Credencial para personal militar activo",
-    schema: {
-      fields: [
-        {
-          name: "force",
-          label: "Fuerza",
-          type: "select",
-          required: true,
-          options: ["armada", "ejercito", "fuerza_aerea"],
-        },
-        {
-          name: "grades",
-          label: "Rango",
-          type: "text",
-          required: true,
-          minLength: 2,
-          maxLength: 120,
-        },
-        {
-          name: "unit",
-          label: "Unidad",
-          type: "text",
-          required: false,
-          maxLength: 120,
-        },
-      ],
-    },
+    name: "Militar",
+    description: "Credencial para personal militar",
+    schema: militarCredentialTypeSchema,
   },
   {
     code: "civil",
@@ -58,53 +45,67 @@ const credentialTypes = [
     },
   },
   {
-    code: "inter-escuelas",
-    name: "Inter-escuelas",
-    description: "Credencial deportiva inter-escuelas",
-    schema: {
-      fields: [
-        {
-          name: "force",
-          label: "Fuerza",
-          type: "select",
-          required: true,
-          options: [
-            "armada",
-            "ejercito",
-            "fuerza_aerea",
-            "policia_nacional",
-          ],
-        },
-        {
-          name: "sport",
-          label: "Deporte",
-          type: "text",
-          required: true,
-          minLength: 2,
-          maxLength: 80,
-        },
-        {
-          name: "course",
-          label: "Curso / Año",
-          type: "select",
-          required: true,
-          options: ["1", "2", "3", "4"],
-        },
-      ],
-    },
+    code: "cadetes",
+    name: "Cadetes",
+    description: "Credencial para cadetes",
+    schema: cadetesCredentialTypeSchema,
   },
 ];
 
+async function migrateInterEscuelasToCadetes(): Promise<void> {
+  const legacy = await prisma.credentialType.findUnique({
+    where: { code: "inter-escuelas" },
+  });
+
+  if (!legacy) {
+    return;
+  }
+
+  const existingCadetes = await prisma.credentialType.findUnique({
+    where: { code: "cadetes" },
+  });
+
+  if (existingCadetes) {
+    await prisma.credential.updateMany({
+      where: { credentialTypeId: legacy.id },
+      data: { credentialTypeId: existingCadetes.id },
+    });
+    await prisma.credentialType.delete({ where: { id: legacy.id } });
+    console.log(
+      "Merged credentials from inter-escuelas into existing cadetes type",
+    );
+    return;
+  }
+
+  await prisma.credentialType.update({
+    where: { id: legacy.id },
+    data: {
+      code: "cadetes",
+      name: "Cadetes",
+      description: "Credencial para cadetes",
+      schema: cadetesCredentialTypeSchema as unknown as Prisma.InputJsonValue,
+    },
+  });
+  console.log(
+    "Migrated inter-escuelas → cadetes (same type id, credentials unchanged)",
+  );
+}
+
 async function main() {
+  await migrateInterEscuelasToCadetes();
+
   for (const type of credentialTypes) {
     await prisma.credentialType.upsert({
       where: { code: type.code },
       update: {
         name: type.name,
         description: type.description,
-        schema: type.schema,
+        schema: type.schema as Prisma.InputJsonValue,
       },
-      create: type,
+      create: {
+        ...type,
+        schema: type.schema as Prisma.InputJsonValue,
+      },
     });
 
     console.log(`Credential type ready: ${type.code}`);

@@ -25,7 +25,12 @@ export class CredentialResponseDto {
   details?: string;
 
   @ApiProperty({
-    example: { rank: "Capitán", unit: "Batallón 12", force: "Ejército" },
+    example: {
+      force: "armada",
+      category: "OfficerNavy",
+      grades: "Teniente de Corbeta",
+      unit: "Fragata ARC Caldas",
+    },
   })
   metadata!: CredentialMetadata;
 

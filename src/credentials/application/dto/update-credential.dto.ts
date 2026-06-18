@@ -43,7 +43,8 @@ export class UpdateCredentialDto {
   details?: string;
 
   @ApiPropertyOptional({
-    example: '{"rank":"Capitán","unit":"Batallón 12","force":"Ejército"}',
+    example:
+      '{"force":"armada","category":"OfficerNavy","grades":"Teniente de Corbeta","unit":"Fragata ARC Caldas"}',
     description: "JSON con campos específicos del tipo de credencial",
   })
   @IsString()

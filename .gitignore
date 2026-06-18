@@ -4,3 +4,4 @@ dist
 uploads/credentials/*
 !uploads/credentials/.gitkeep
 .DS_Store
+.cursor/

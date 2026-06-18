@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { CqrsModule } from '@nestjs/cqrs';
 import { APP_GUARD } from '@nestjs/core';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
+import { createThrottleConfig } from './common/config/throttle.config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { CredentialsModule } from './credentials/credentials.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -12,10 +13,7 @@ import { MailModule } from './mail/mail.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 10,
-    }]),
+    ThrottlerModule.forRoot(createThrottleConfig()),
     CqrsModule,
     PrismaModule,
     AuthModule,

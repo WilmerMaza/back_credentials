@@ -33,6 +33,8 @@ model User {
   person    Person?  @relation(fields: [personId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  credentialAuditLogs CredentialAuditLog[]
 }
 
 model CredentialType {
@@ -64,9 +66,33 @@ model Credential {
 
   person           Person           @relation(fields: [personId], references: [id], onDelete: Cascade)
   credentialType   CredentialType   @relation(fields: [credentialTypeId], references: [id])
+  auditLogs        CredentialAuditLog[]
 
   @@index([personId])
   @@index([credentialTypeId])
+}
+
+enum CredentialAuditAction {
+  CREATE
+  UPDATE
+}
+
+model CredentialAuditLog {
+  id           String                @id @default(cuid())
+  credentialId String
+  action       CredentialAuditAction
+  userId       String?
+  userEmail    String?
+  before       Json?
+  after        Json
+  createdAt    DateTime              @default(now())
+
+  credential   Credential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  user         User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([credentialId])
+  @@index([userId])
+  @@index([createdAt])
 }
 
 enum CredentialStatus {

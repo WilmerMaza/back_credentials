@@ -5,6 +5,7 @@ import {
   CredentialRepository,
 } from '../../../domain/credential.repository';
 import { Credential } from '../../../domain/credential.entity';
+import { CredentialNotificationService } from '../../services/credential-notification.service';
 import { CreateCredentialCommand } from '../create-credential.command';
 
 @CommandHandler(CreateCredentialCommand)
@@ -14,9 +15,12 @@ export class CreateCredentialHandler
   constructor(
     @Inject(CREDENTIAL_REPOSITORY)
     private readonly repository: CredentialRepository,
+    private readonly notificationService: CredentialNotificationService,
   ) {}
 
   async execute(command: CreateCredentialCommand): Promise<Credential> {
-    return this.repository.create(command.data);
+    const credential = await this.repository.create(command.data, command.actor);
+    this.notificationService.scheduleCredentialEmail(credential);
+    return credential;
   }
 }

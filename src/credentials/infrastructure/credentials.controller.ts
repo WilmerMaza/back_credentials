@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -21,7 +22,9 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { normalizePersonData } from "../../common/utils/person-data.normalizer";
+import { THROTTLE_WRITE } from "../../common/config/throttle.config";
 import { JwtAuthGuard } from "../../auth/infrastructure/guards/jwt-auth.guard";
 import { CreateCredentialCommand } from "../application/commands/create-credential.command";
 import { UpdateCredentialCommand } from "../application/commands/update-credential.command";
@@ -34,8 +37,11 @@ import {
   UpdateCredentialRequestDto,
 } from "../application/dto/update-credential.dto";
 import { CredentialResponseDto } from "../application/dto/credential-response.dto";
+import { CredentialAuditLogResponseDto } from "../application/dto/credential-audit-log-response.dto";
 import { GetCredentialQuery } from "../application/queries/get-credential.query";
+import { GetCredentialAuditLogsQuery } from "../application/queries/get-credential-audit-logs.query";
 import { ListCredentialsQuery } from "../application/queries/list-credentials.query";
+import { AuditActor, CredentialAuditLogEntry } from "../domain/credential-audit.types";
 import {
   CreateCredentialData,
   UpdateCredentialData,
@@ -43,6 +49,7 @@ import {
 import { CredentialMetadata } from "../domain/credential-type-schema";
 import { LocalFileService } from "./storage/local-file.service";
 import { multerOptions } from "./storage/multer-options";
+import { Request } from "express";
 
 @ApiTags("credentials")
 @UseGuards(JwtAuthGuard)
@@ -54,12 +61,14 @@ export class CredentialsController {
     private readonly localFileService: LocalFileService,
   ) {}
 
+  @Throttle(THROTTLE_WRITE)
   @Post()
   @ApiConsumes("multipart/form-data")
   @ApiBody({ type: CreateCredentialRequestDto })
   @ApiCreatedResponse({ type: CredentialResponseDto })
   @UseInterceptors(FileInterceptor("image", multerOptions))
   async create(
+    @Req() req: Request,
     @Body() dto: CreateCredentialDto,
     @UploadedFile() file: Express.Multer.File,
   ): Promise<CredentialResponseDto> {
@@ -90,18 +99,20 @@ export class CredentialsController {
     };
 
     const created = await this.commandBus.execute(
-      new CreateCredentialCommand(data),
+      new CreateCredentialCommand(data, this.getAuditActor(req)),
     );
 
     return CredentialResponseDto.fromDomain(created);
   }
 
+  @Throttle(THROTTLE_WRITE)
   @Patch(":id")
   @ApiConsumes("multipart/form-data")
   @ApiBody({ type: UpdateCredentialRequestDto })
   @ApiOkResponse({ type: CredentialResponseDto })
   @UseInterceptors(FileInterceptor("image", multerOptions))
   async update(
+    @Req() req: Request,
     @Param("id") id: string,
     @Body() dto: UpdateCredentialDto,
     @UploadedFile() file?: Express.Multer.File,
@@ -130,12 +141,52 @@ export class CredentialsController {
     };
 
     const updated = await this.commandBus.execute(
-      new UpdateCredentialCommand(id, data),
+      new UpdateCredentialCommand(id, data, this.getAuditActor(req)),
     );
 
     return CredentialResponseDto.fromDomain(updated);
   }
 
+  @SkipThrottle()
+  @Get(":id/audit-logs")
+  @ApiOkResponse({
+    description: "Historial de auditoría de una credencial",
+    schema: {
+      example: {
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+        totalPages: 0,
+      },
+    },
+  })
+  async listAuditLogs(
+    @Param("id") id: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ) {
+    const parsedPage = parseInt(page as string, 10);
+    const parsedLimit = parseInt(limit as string, 10);
+    const pageNumber = isNaN(parsedPage) ? 1 : parsedPage;
+    const limitNumber = isNaN(parsedLimit) ? 20 : parsedLimit;
+
+    const result = await this.queryBus.execute(
+      new GetCredentialAuditLogsQuery(id, pageNumber, limitNumber),
+    );
+
+    return {
+      data: result.data.map((entry: CredentialAuditLogEntry) =>
+        CredentialAuditLogResponseDto.fromDomain(entry),
+      ),
+      total: result.total,
+      page: pageNumber,
+      limit: limitNumber,
+      totalPages: Math.ceil(result.total / limitNumber),
+    };
+  }
+
+  @SkipThrottle()
   @Get(":id")
   @ApiOkResponse({ type: CredentialResponseDto })
   async get(@Param("id") id: string): Promise<CredentialResponseDto> {
@@ -146,6 +197,7 @@ export class CredentialsController {
     return CredentialResponseDto.fromDomain(found);
   }
 
+  @SkipThrottle()
   @Get()
   @ApiOkResponse({
     description: "Paginated list of credentials with status summary",
@@ -182,6 +234,14 @@ export class CredentialsController {
       limit: limitNumber,
       totalPages: Math.ceil(result.total / limitNumber),
       summary: result.summary,
+    };
+  }
+
+  private getAuditActor(req: Request): AuditActor {
+    const user = req.user as { userId: string; email: string };
+    return {
+      userId: user.userId,
+      email: user.email,
     };
   }
 

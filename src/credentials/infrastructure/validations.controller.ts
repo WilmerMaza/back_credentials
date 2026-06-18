@@ -1,6 +1,7 @@
 import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 import { QueryBus } from "@nestjs/cqrs";
 import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { SkipThrottle } from "@nestjs/throttler";
 import { JwtAuthGuard } from "../../auth/infrastructure/guards/jwt-auth.guard";
 import {
   CheckEmailQueryDto,
@@ -11,6 +12,7 @@ import { CheckEmailExistsQuery } from "../application/queries/check-email-exists
 import { CheckIdentityExistsQuery } from "../application/queries/check-identity-exists.query";
 
 @ApiTags("validations")
+@SkipThrottle()
 @UseGuards(JwtAuthGuard)
 @Controller("validations")
 export class ValidationsController {

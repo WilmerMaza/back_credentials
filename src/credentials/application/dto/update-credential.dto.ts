@@ -1,45 +1,73 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
 import {
   IsDateString,
   IsEmail,
-  IsIn,
-  IsNotEmpty,
   IsOptional,
   IsString,
+  ValidateIf,
 } from "class-validator";
+import { CREDENTIAL_STATUSES } from "../../domain/credential-status";
+import { emptyToUndefined } from "../../domain/credential-draft";
 
-const CREDENTIAL_STATUSES = [
-  "ACTIVE",
-  "PENDING",
-  "EXPIRED",
-  "REVOKED",
-  "SUSPENDED",
-] as const;
+const EmptyToUndefined = () =>
+  Transform(({ value }) => {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+    if (typeof value === "string") {
+      return emptyToUndefined(value);
+    }
+    return value;
+  });
 
 export class UpdateCredentialDto {
-  @ApiProperty({ example: "Juan" })
+  @ApiPropertyOptional({ example: "Juan" })
+  @EmptyToUndefined()
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  firstName!: string;
+  firstName?: string;
 
-  @ApiProperty({ example: "Pérez" })
+  @ApiPropertyOptional({ example: "Pérez" })
+  @EmptyToUndefined()
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  lastName!: string;
+  lastName?: string;
 
-  @ApiProperty({ example: "123456789" })
+  @ApiPropertyOptional({ example: "123456789" })
+  @EmptyToUndefined()
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  identityNumber!: string;
+  identityNumber?: string;
 
-  @ApiProperty({ example: "CC" })
+  @ApiPropertyOptional({
+    example: "123456789",
+    description: "Alias de identityNumber (compatibilidad frontend)",
+  })
+  @EmptyToUndefined()
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  typeIdentity!: string;
+  numeroIdentidad?: string;
+
+  @ApiPropertyOptional({ example: "CC" })
+  @EmptyToUndefined()
+  @IsOptional()
+  @IsString()
+  typeIdentity?: string;
+
+  @ApiPropertyOptional({
+    example: "CC",
+    description: "Alias de typeIdentity (compatibilidad frontend)",
+  })
+  @EmptyToUndefined()
+  @IsOptional()
+  @IsString()
+  tipoIdentidad?: string;
 
   @ApiPropertyOptional({ example: "Detalle adicional de la credencial" })
-  @IsString()
+  @EmptyToUndefined()
   @IsOptional()
+  @IsString()
   details?: string;
 
   @ApiPropertyOptional({
@@ -47,39 +75,51 @@ export class UpdateCredentialDto {
       '{"force":"armada","category":"OfficerNavy","grades":"Teniente de Corbeta","unit":"Fragata ARC Caldas"}',
     description: "JSON con campos específicos del tipo de credencial",
   })
-  @IsString()
+  @EmptyToUndefined()
   @IsOptional()
+  @IsString()
   metadata?: string;
 
-  @ApiProperty({ example: "1990-01-01" })
+  @ApiPropertyOptional({ example: "1990-01-01" })
+  @EmptyToUndefined()
+  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined && value !== null && String(value).trim() !== "")
   @IsDateString()
-  birthDate!: string;
+  birthDate?: string;
 
-  @ApiProperty({ example: "juan.perez@mil.edu" })
+  @ApiPropertyOptional({ example: "juan.perez@mil.edu" })
+  @EmptyToUndefined()
+  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined && value !== null && String(value).trim() !== "")
   @IsEmail()
-  institutionalEmail!: string;
+  institutionalEmail?: string;
 
-  @ApiProperty({ example: "militar" })
+  @ApiPropertyOptional({ example: "militar" })
+  @EmptyToUndefined()
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  credentialTypeCode!: string;
+  credentialTypeCode?: string;
 
   @ApiPropertyOptional({ example: "3001234567" })
-  @IsString()
+  @EmptyToUndefined()
   @IsOptional()
+  @IsString()
   phone?: string;
 
   @ApiPropertyOptional({ example: "2030-12-31" })
-  @IsDateString()
+  @EmptyToUndefined()
   @IsOptional()
+  @ValidateIf((_, value) => value !== undefined && value !== null && String(value).trim() !== "")
+  @IsDateString()
   expirationDate?: string;
 
   @ApiPropertyOptional({
     enum: CREDENTIAL_STATUSES,
     example: "ACTIVE",
   })
+  @EmptyToUndefined()
   @IsOptional()
-  @IsIn(CREDENTIAL_STATUSES)
+  @IsString()
   status?: string;
 }
 

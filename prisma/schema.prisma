@@ -59,7 +59,7 @@ model Credential {
 
   issueDate        DateTime?
   expirationDate   DateTime?
-  status           CredentialStatus @default(ACTIVE)
+  status           CredentialStatus @default(PENDING)
 
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
@@ -99,6 +99,7 @@ enum CredentialStatus {
   ACTIVE
   PENDING
   EXPIRED
+  TRANSFERRED
   REVOKED
   SUSPENDED
 }

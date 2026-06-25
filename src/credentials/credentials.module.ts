@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
+import { ScheduleModule } from "@nestjs/schedule";
 import { PrismaModule } from "../prisma/prisma.module";
 import { MailModule } from "../mail/mail.module";
 import { CreateCredentialHandler } from "./application/commands/handlers/create-credential.handler";
@@ -18,6 +19,7 @@ import { ListCredentialsHandler } from "./application/queries/handlers/list-cred
 import { CREDENTIAL_REPOSITORY } from "./domain/credential.repository";
 import { PERSON_REPOSITORY } from "./domain/person.repository";
 import { CredentialPrismaRepository } from "./infrastructure/credential-prisma.repository";
+import { CredentialExpirationScheduler } from "./infrastructure/credential-expiration.scheduler";
 import { CredentialTypesController } from "./infrastructure/credential-types.controller";
 import { CredentialsController } from "./infrastructure/credentials.controller";
 import { PersonPrismaRepository } from "./infrastructure/person-prisma.repository";
@@ -39,6 +41,7 @@ const QueryHandlers = [
 ];
 
 @Module({
+  imports: [CqrsModule, PrismaModule, ScheduleModule.forRoot()],
   imports: [CqrsModule, PrismaModule, MailModule],
   controllers: [
     CredentialsController,
@@ -50,6 +53,7 @@ const QueryHandlers = [
   providers: [
     LocalFileService,
     MetadataSchemaValidator,
+    CredentialExpirationScheduler,
     CredentialPdfGenerator,
     CredentialNotificationService,
     CredentialPrismaRepository,

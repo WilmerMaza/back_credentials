@@ -140,3 +140,15 @@ export const LEGACY_METADATA_ALIASES = {
   categorie: "category",
   rank: "grades",
 } as const;
+
+/** Códigos de tipo legacy aceptados en escritura. */
+export const LEGACY_CREDENTIAL_TYPE_CODES: Record<string, string> = {
+  cadetes: "alumnos_baena",
+  "inter-escuelas": "alumnos_baena",
+  inter_escuelas: "alumnos_baena",
+};
+
+export function normalizeCredentialTypeCode(code: string): string {
+  const normalized = code.trim().toLowerCase();
+  return LEGACY_CREDENTIAL_TYPE_CODES[normalized] ?? normalized;
+}

@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Credential } from "../../domain/credential.entity";
 import { CredentialMetadata } from "../../domain/credential-type-schema";
+import { CREDENTIAL_STATUSES } from "../../domain/credential-status";
 
 export class CredentialResponseDto {
   @ApiProperty()
@@ -50,7 +51,7 @@ export class CredentialResponseDto {
   imagePath!: string;
 
   @ApiProperty({
-    enum: ["ACTIVE", "PENDING", "EXPIRED", "REVOKED", "SUSPENDED"],
+    enum: CREDENTIAL_STATUSES,
   })
   status!: string;
 

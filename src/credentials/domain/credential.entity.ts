@@ -1,4 +1,5 @@
 import { CredentialMetadata } from "./credential-type-schema";
+import { CredentialStatus } from "./credential-status";
 
 export interface Credential {
   id: string;
@@ -21,7 +22,7 @@ export interface Credential {
   imagePath: string | null;
   issueDate: Date | null;
   expirationDate: Date | null;
-  status: "ACTIVE" | "PENDING" | "EXPIRED" | "REVOKED" | "SUSPENDED";
+  status: CredentialStatus;
   createdAt: Date;
   updatedAt: Date;
 }

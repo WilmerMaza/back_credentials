@@ -46,9 +46,23 @@ import {
   CreateCredentialData,
   UpdateCredentialData,
 } from "../domain/credential.repository";
-import { CredentialMetadata } from "../domain/credential-type-schema";
+import { CredentialMetadata, normalizeCredentialTypeCode } from "../domain/credential-type-schema";
+import {
+  assertCompleteCredentialSubmission,
+  buildPersonDataForCreate,
+  buildPersonDataForUpdate,
+  isCompleteCredentialSubmission,
+  mergeDraftField,
+  resolveCredentialTypeCode,
+} from "../domain/credential-draft";
+import { applyExpirationToStatus } from "../domain/credential-expiration";
+import {
+  CredentialStatus,
+  normalizeCredentialStatus,
+} from "../domain/credential-status";
 import { LocalFileService } from "./storage/local-file.service";
 import { multerOptions } from "./storage/multer-options";
+import { normalizeCredentialFormFields } from "../application/services/credential-form-fields.normalizer";
 import { Request } from "express";
 
 @ApiTags("credentials")
@@ -70,32 +84,48 @@ export class CredentialsController {
   async create(
     @Req() req: Request,
     @Body() dto: CreateCredentialDto,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file?: Express.Multer.File,
   ): Promise<CredentialResponseDto> {
-    if (!file) {
-      throw new BadRequestException("Image is required");
-    }
-
-    const normalizedPerson = normalizePersonData({
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      typeIdentity: dto.typeIdentity,
-      identityNumber: dto.identityNumber,
-      institutionalEmail: dto.institutionalEmail,
+    const form = normalizeCredentialFormFields(dto);
+    const hasImage = Boolean(file);
+    const isComplete = isCompleteCredentialSubmission(form, {
+      requireImage: true,
+      hasImage,
     });
 
+    const { status: resolvedStatus, isDraft } = this.resolveSubmissionMode({
+      fields: form,
+      isComplete,
+      explicitStatus: form.status,
+      allowExplicitNonActiveOnComplete: false,
+      submissionOptions: { requireImage: true, hasImage },
+    });
+
+    const expirationDate = dto.expirationDate
+      ? new Date(dto.expirationDate)
+      : undefined;
+    const status = applyExpirationToStatus(resolvedStatus, expirationDate);
+
+    if (!isDraft) {
+      assertCompleteCredentialSubmission(form, {
+        requireImage: true,
+        hasImage,
+      });
+    }
+
+    const credentialTypeCode = normalizeCredentialTypeCode(
+      resolveCredentialTypeCode(form, undefined, isDraft),
+    );
+
     const data: CreateCredentialData = {
-      person: {
-        ...normalizedPerson,
-        birthDate: new Date(dto.birthDate),
-      },
-      credentialTypeCode: dto.credentialTypeCode.trim().toLowerCase(),
-      details: dto.details?.trim() || undefined,
-      metadata: this.parseMetadata(dto.metadata),
-      imagePath: this.localFileService.toStoragePath(file),
-      expirationDate: dto.expirationDate
-        ? new Date(dto.expirationDate)
-        : undefined,
+      person: buildPersonDataForCreate(form, isDraft),
+      credentialTypeCode,
+      details: form.details?.trim() || undefined,
+      metadata: this.parseMetadata(form.metadata),
+      imagePath: file ? this.localFileService.toStoragePath(file) : undefined,
+      expirationDate,
+      status,
+      isDraft,
     };
 
     const created = await this.commandBus.execute(
@@ -117,27 +147,77 @@ export class CredentialsController {
     @Body() dto: UpdateCredentialDto,
     @UploadedFile() file?: Express.Multer.File,
   ): Promise<CredentialResponseDto> {
-    const normalizedPerson = normalizePersonData({
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      typeIdentity: dto.typeIdentity,
-      identityNumber: dto.identityNumber,
-      institutionalEmail: dto.institutionalEmail,
+    const form = normalizeCredentialFormFields(dto);
+    const existing = await this.queryBus.execute(new GetCredentialQuery(id));
+    if (!existing) {
+      throw new NotFoundException("Credential not found");
+    }
+
+    const mergedFields = {
+      firstName: mergeDraftField(form.firstName, existing.person.firstName),
+      lastName: mergeDraftField(form.lastName, existing.person.lastName),
+      identityNumber: mergeDraftField(
+        form.identityNumber,
+        existing.person.identityNumber,
+      ),
+      typeIdentity: mergeDraftField(
+        form.typeIdentity,
+        existing.person.typeIdentity,
+      ),
+      birthDate:
+        mergeDraftField(
+          form.birthDate,
+          existing.person.birthDate.toISOString().slice(0, 10),
+        ) ?? existing.person.birthDate.toISOString().slice(0, 10),
+      institutionalEmail: mergeDraftField(
+        form.institutionalEmail,
+        existing.person.institutionalEmail ?? undefined,
+      ),
+      credentialTypeCode: mergeDraftField(
+        form.credentialTypeCode,
+        existing.type.code,
+      ),
+    };
+    const hasImage = Boolean(file ?? existing.imagePath);
+    const isComplete = isCompleteCredentialSubmission(mergedFields, {
+      requireImage: true,
+      hasImage,
     });
 
+    const { status: resolvedStatus, isDraft } = this.resolveSubmissionMode({
+      fields: mergedFields,
+      isComplete,
+      explicitStatus: form.status,
+      fallbackStatus: existing.status as CredentialStatus,
+      allowExplicitNonActiveOnComplete: true,
+      submissionOptions: { requireImage: true, hasImage },
+    });
+
+    const expirationDate = dto.expirationDate
+      ? new Date(dto.expirationDate)
+      : existing.expirationDate ?? undefined;
+    const status = applyExpirationToStatus(resolvedStatus, expirationDate);
+
+    if (!isDraft) {
+      assertCompleteCredentialSubmission(mergedFields, {
+        requireImage: true,
+        hasImage,
+      });
+    }
+
+    const credentialTypeCode = normalizeCredentialTypeCode(
+      resolveCredentialTypeCode(form, existing.type.code, isDraft),
+    );
+
     const data: UpdateCredentialData = {
-      person: {
-        ...normalizedPerson,
-        birthDate: new Date(dto.birthDate),
-      },
-      credentialTypeCode: dto.credentialTypeCode.trim().toLowerCase(),
-      details: dto.details?.trim() || undefined,
-      metadata: this.parseMetadata(dto.metadata),
+      person: buildPersonDataForUpdate(form, existing, isDraft),
+      credentialTypeCode,
+      details: form.details?.trim() || undefined,
+      metadata: this.parseMetadata(form.metadata),
       imagePath: file ? this.localFileService.toStoragePath(file) : undefined,
-      expirationDate: dto.expirationDate
-        ? new Date(dto.expirationDate)
-        : undefined,
-      status: dto.status?.trim().toUpperCase(),
+      expirationDate,
+      status,
+      isDraft,
     };
 
     const updated = await this.commandBus.execute(
@@ -208,21 +288,27 @@ export class CredentialsController {
         page: 1,
         limit: 10,
         totalPages: 0,
-        summary: { activas: 0, inactivas: 0, pendientes: 0 },
+        summary: { activas: 0, inactivas: 0, pendientes: 0, expiradas: 0 },
       },
     },
   })
   async list(
     @Query("page") page?: string,
     @Query("limit") limit?: string,
+    @Query("status") status?: string,
   ) {
     const parsedPage = parseInt(page as string, 10);
     const parsedLimit = parseInt(limit as string, 10);
     const pageNumber = isNaN(parsedPage) ? 1 : parsedPage;
     const limitNumber = isNaN(parsedLimit) ? 10 : parsedLimit;
+    const statusFilter = status?.trim() || undefined;
+
+    if (statusFilter) {
+      this.resolveStatus(statusFilter);
+    }
 
     const result = await this.queryBus.execute(
-      new ListCredentialsQuery(pageNumber, limitNumber),
+      new ListCredentialsQuery(pageNumber, limitNumber, statusFilter),
     );
 
     return {
@@ -235,6 +321,66 @@ export class CredentialsController {
       totalPages: Math.ceil(result.total / limitNumber),
       summary: result.summary,
     };
+  }
+
+  private resolveSubmissionMode(input: {
+    fields: {
+      firstName?: string;
+      lastName?: string;
+      identityNumber?: string;
+      typeIdentity?: string;
+      birthDate?: string;
+      institutionalEmail?: string;
+      credentialTypeCode?: string;
+    };
+    isComplete: boolean;
+    explicitStatus?: string;
+    fallbackStatus?: CredentialStatus;
+    allowExplicitNonActiveOnComplete: boolean;
+    submissionOptions: { requireImage?: boolean; hasImage?: boolean };
+  }): { status: CredentialStatus; isDraft: boolean } {
+    if (input.isComplete) {
+      if (input.explicitStatus && input.allowExplicitNonActiveOnComplete) {
+        const explicit = this.resolveStatus(input.explicitStatus);
+        if (explicit !== "PENDING") {
+          return { status: explicit, isDraft: false };
+        }
+      }
+
+      return { status: "ACTIVE", isDraft: false };
+    }
+
+    if (input.explicitStatus) {
+      const explicit = this.resolveStatus(input.explicitStatus);
+      if (explicit !== "PENDING") {
+        assertCompleteCredentialSubmission(
+          input.fields,
+          input.submissionOptions,
+        );
+      }
+    }
+
+    return {
+      status: input.fallbackStatus ?? "PENDING",
+      isDraft: true,
+    };
+  }
+
+  private resolveStatus(
+    raw?: string,
+    defaultStatus?: CredentialStatus,
+  ): CredentialStatus {
+    try {
+      const resolved = normalizeCredentialStatus(raw, defaultStatus);
+      if (!resolved) {
+        throw new Error("Estado de credencial requerido");
+      }
+      return resolved;
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : "Estado de credencial inválido",
+      );
+    }
   }
 
   private getAuditActor(req: Request): AuditActor {

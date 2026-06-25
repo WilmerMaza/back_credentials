@@ -25,17 +25,26 @@ export class MetadataSchemaValidator {
   validate(
     schema: CredentialTypeSchema | null | undefined,
     metadata: CredentialMetadata,
+    options: { allowPartial?: boolean } = {},
   ): CredentialMetadata {
     const fields = schema?.fields ?? [];
     const input = normalizeLegacyInput(metadata);
     const errors: string[] = [];
     const normalized: CredentialMetadata = {};
+    const allowPartial = options.allowPartial ?? false;
 
     for (const field of fields) {
       this.assertValidFieldDefinition(field, fields, errors);
 
       if (this.isHidden(field, normalized)) {
-        this.applyAutoValueOrValidate(field, input[field.name], normalized, errors);
+        this.applyAutoValueOrValidate(
+          field,
+          input[field.name],
+          normalized,
+          errors,
+          undefined,
+          allowPartial,
+        );
         continue;
       }
 
@@ -43,11 +52,18 @@ export class MetadataSchemaValidator {
       const rawValue = input[field.name];
 
       if (autoValue !== undefined) {
-        this.applyAutoValueOrValidate(field, rawValue, normalized, errors, autoValue);
+        this.applyAutoValueOrValidate(
+          field,
+          rawValue,
+          normalized,
+          errors,
+          autoValue,
+          allowPartial,
+        );
         continue;
       }
 
-      if (field.required && this.isEmpty(rawValue)) {
+      if (field.required && this.isEmpty(rawValue) && !allowPartial) {
         errors.push(`El campo "${field.label}" es requerido`);
         continue;
       }
@@ -126,12 +142,13 @@ export class MetadataSchemaValidator {
     normalized: CredentialMetadata,
     errors: string[],
     autoValue?: string,
+    allowPartial = false,
   ): void {
     const resolvedAutoValue =
       autoValue ?? this.resolveAutoValue(field, normalized);
 
     if (resolvedAutoValue === undefined) {
-      if (field.required) {
+      if (field.required && !allowPartial) {
         errors.push(`El campo "${field.label}" es requerido`);
       }
       return;

@@ -17,6 +17,7 @@ export class GetCredentialHandler
   ) {}
 
   async execute(query: GetCredentialQuery): Promise<Credential | null> {
+    await this.repository.expireActiveCredentials();
     return this.repository.findById(query.id);
   }
 }

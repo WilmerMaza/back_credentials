@@ -1,6 +1,6 @@
 import { BadRequestException } from "@nestjs/common";
 import {
-  cadetesCredentialTypeSchema,
+  alumnosBaenaCredentialTypeSchema,
   militarCredentialTypeSchema,
 } from "../../domain/credential-type-schemas";
 import { CredentialTypeSchema } from "../../domain/credential-type-schema";
@@ -33,25 +33,137 @@ describe("MetadataSchemaValidator", () => {
     ],
   };
 
-  const cadetesSchema = cadetesCredentialTypeSchema;
+  const alumnosBaenaSchema = alumnosBaenaCredentialTypeSchema;
 
   it("valida oficial naval con cascada force → category → grades", () => {
     const result = validator.validate(militarSchema, {
       force: "armada",
       category: "OfficerNavy",
-      grades: "Teniente de Corbeta",
+      grades: "Teniente de corbeta",
       unit: "Fragata ARC Caldas",
     });
 
     expect(result).toEqual({
       force: "armada",
       category: "OfficerNavy",
-      grades: "Teniente de Corbeta",
+      grades: "Teniente de corbeta",
       unit: "Fragata ARC Caldas",
     });
   });
 
-  it("auto-asigna grado IMP cuando category es IMP", () => {
+  it("valida Almirante en oficial naval", () => {
+    const result = validator.validate(militarSchema, {
+      force: "armada",
+      category: "OfficerNavy",
+      grades: "Almirante",
+    });
+
+    expect(result).toEqual({
+      force: "armada",
+      category: "OfficerNavy",
+      grades: "Almirante",
+    });
+  });
+
+  it("valida oficial de ejército con categoría y grado", () => {
+    const result = validator.validate(militarSchema, {
+      force: "ejercito",
+      category: "ArmyOfficer",
+      grades: "Mayor",
+    });
+
+    expect(result).toEqual({
+      force: "ejercito",
+      category: "ArmyOfficer",
+      grades: "Mayor",
+    });
+  });
+
+  it("valida suboficial de ejército con categoría y grado", () => {
+    const result = validator.validate(militarSchema, {
+      force: "ejercito",
+      category: "ArmySubofficer",
+      grades: "Sargento Mayor",
+    });
+
+    expect(result).toEqual({
+      force: "ejercito",
+      category: "ArmySubofficer",
+      grades: "Sargento Mayor",
+    });
+  });
+
+  it("normaliza category legacy Army según grado", () => {
+    const result = validator.validate(militarSchema, {
+      force: "ejercito",
+      category: "Army",
+      grades: "General de ejército",
+    });
+
+    expect(result).toEqual({
+      force: "ejercito",
+      category: "ArmyOfficer",
+      grades: "General de ejército",
+    });
+  });
+
+  it("valida técnico de fuerza aérea con categoría", () => {
+    const result = validator.validate(militarSchema, {
+      force: "fuerza_aerea",
+      category: "SubofficerAir",
+      grades: "Técnico Segundo",
+    });
+
+    expect(result).toEqual({
+      force: "fuerza_aerea",
+      category: "SubofficerAir",
+      grades: "Técnico Segundo",
+    });
+  });
+
+  it("valida oficial de fuerza aérea con categoría", () => {
+    const result = validator.validate(militarSchema, {
+      force: "fuerza_aerea",
+      category: "OfficerAir",
+      grades: "General del Aire",
+    });
+
+    expect(result).toEqual({
+      force: "fuerza_aerea",
+      category: "OfficerAir",
+      grades: "General del Aire",
+    });
+  });
+
+  it("normaliza category legacy AirForce según grado", () => {
+    const result = validator.validate(militarSchema, {
+      force: "fuerza_aerea",
+      category: "AirForce",
+      grades: "Técnico jefe de comando",
+    });
+
+    expect(result).toEqual({
+      force: "fuerza_aerea",
+      category: "SubofficerAir",
+      grades: "Técnico jefe de comando",
+    });
+  });
+
+  it("valida suboficial IM con grado de comando conjunto", () => {
+    const result = validator.validate(militarSchema, {
+      force: "armada",
+      category: "SubofficerIM",
+      grades: "Sargento Mayor de Comando Conjunto",
+    });
+
+    expect(result).toEqual({
+      force: "armada",
+      category: "SubofficerIM",
+      grades: "Sargento Mayor de Comando Conjunto",
+    });
+  });
+
+  it("auto-asigna grado IMP cuando category es IMP en ejército", () => {
     const result = validator.validate(militarSchema, {
       force: "ejercito",
       category: "IMP",
@@ -60,6 +172,20 @@ describe("MetadataSchemaValidator", () => {
 
     expect(result).toEqual({
       force: "ejercito",
+      category: "IMP",
+      grades: "Infante de marina profesional",
+    });
+  });
+
+  it("auto-asigna grado IMP cuando category es IMP en armada", () => {
+    const result = validator.validate(militarSchema, {
+      force: "armada",
+      category: "IMP",
+      grades: "Infante de marina profesional",
+    });
+
+    expect(result).toEqual({
+      force: "armada",
       category: "IMP",
       grades: "Infante de marina profesional",
     });
@@ -68,9 +194,9 @@ describe("MetadataSchemaValidator", () => {
   it("rechaza grado incorrecto para IMP", () => {
     expect(() =>
       validator.validate(militarSchema, {
-        force: "ejercito",
+        force: "armada",
         category: "IMP",
-        grades: "Teniente de Corbeta",
+        grades: "Teniente de corbeta",
       }),
     ).toThrow(BadRequestException);
   });
@@ -80,7 +206,7 @@ describe("MetadataSchemaValidator", () => {
       validator.validate(militarSchema, {
         force: "ejercito",
         category: "OfficerNavy",
-        grades: "Teniente de Corbeta",
+        grades: "Mayor",
       }),
     ).toThrow(BadRequestException);
   });
@@ -99,13 +225,13 @@ describe("MetadataSchemaValidator", () => {
     const result = validator.validate(militarSchema, {
       force: "armada",
       categorie: "OfficerNavy",
-      rank: "Teniente de Corbeta",
+      rank: "Teniente de corbeta",
     });
 
     expect(result).toEqual({
       force: "armada",
       category: "OfficerNavy",
-      grades: "Teniente de Corbeta",
+      grades: "Teniente de corbeta",
     });
   });
 
@@ -121,34 +247,8 @@ describe("MetadataSchemaValidator", () => {
     });
   });
 
-  it("auto-asigna compañía y curso cuando grado es aspirante", () => {
-    const result = validator.validate(cadetesSchema, {
-      grado: "aspirante",
-      compania: "binney",
-      curso: "1.1",
-    });
-
-    expect(result).toEqual({
-      grado: "aspirante",
-      compania: "binney",
-      curso: "1.1",
-    });
-  });
-
-  it("auto-asigna compañía y curso vacíos para aspirante", () => {
-    const result = validator.validate(cadetesSchema, {
-      grado: "aspirante",
-    });
-
-    expect(result).toEqual({
-      grado: "aspirante",
-      compania: "binney",
-      curso: "1.1",
-    });
-  });
-
-  it("valida cadete con selección manual de compañía y curso", () => {
-    const result = validator.validate(cadetesSchema, {
+  it("valida cadete con compañía y curso", () => {
+    const result = validator.validate(alumnosBaenaSchema, {
       grado: "cadete",
       compania: "tono",
       curso: "2.2",
@@ -161,14 +261,80 @@ describe("MetadataSchemaValidator", () => {
     });
   });
 
-  it("rechaza compañía incorrecta para aspirante", () => {
+  it("valida alférez con compañía y curso", () => {
+    const result = validator.validate(alumnosBaenaSchema, {
+      grado: "alferez",
+      compania: "padilla",
+      curso: "4.1",
+    });
+
+    expect(result).toEqual({
+      grado: "alferez",
+      compania: "padilla",
+      curso: "4.1",
+    });
+  });
+
+  it("rechaza grado aspirante fuera del catálogo BAENA", () => {
     expect(() =>
-      validator.validate(cadetesSchema, {
+      validator.validate(alumnosBaenaSchema, {
         grado: "aspirante",
-        compania: "tono",
+        compania: "binney",
         curso: "1.1",
       }),
     ).toThrow(BadRequestException);
+  });
+
+  it("valida guardiamarina con compañía y curso", () => {
+    const result = validator.validate(alumnosBaenaSchema, {
+      grado: "guardiamarina",
+      compania: "brion",
+      curso: "3.1",
+    });
+
+    expect(result).toEqual({
+      grado: "guardiamarina",
+      compania: "brion",
+      curso: "3.1",
+    });
+  });
+
+  it("rechaza compañía sin grado seleccionado", () => {
+    expect(() =>
+      validator.validate(alumnosBaenaSchema, {
+        compania: "binney",
+        curso: "1.1",
+      }),
+    ).toThrow(BadRequestException);
+  });
+
+  it("rechaza curso sin compañía seleccionada", () => {
+    expect(() =>
+      validator.validate(alumnosBaenaSchema, {
+        grado: "cadete",
+        curso: "1.1",
+      }),
+    ).toThrow(BadRequestException);
+  });
+
+  it("rechaza compañía fuera del catálogo", () => {
+    expect(() =>
+      validator.validate(alumnosBaenaSchema, {
+        compania: "invalida",
+        grado: "cadete",
+        curso: "1.1",
+      }),
+    ).toThrow(BadRequestException);
+  });
+
+  it("no exige campos requeridos en borrador (allowPartial)", () => {
+    const result = validator.validate(
+      militarSchema,
+      { force: "armada" },
+      { allowPartial: true },
+    );
+
+    expect(result).toEqual({ force: "armada" });
   });
 });
 
@@ -182,6 +348,30 @@ describe("metadata legacy normalizer", () => {
     ).toEqual({
       category: "IMP",
       grades: "Infante de marina profesional",
+    });
+  });
+
+  it("mapea category legacy Army a ArmyOfficer por grado", () => {
+    expect(
+      normalizeLegacyInput({
+        category: "Army",
+        grades: "Mayor",
+      }),
+    ).toEqual({
+      category: "ArmyOfficer",
+      grades: "Mayor",
+    });
+  });
+
+  it("mapea category legacy AirForce a SubofficerAir por grado", () => {
+    expect(
+      normalizeLegacyInput({
+        category: "AirForce",
+        grades: "Técnico Segundo",
+      }),
+    ).toEqual({
+      category: "SubofficerAir",
+      grades: "Técnico Segundo",
     });
   });
 

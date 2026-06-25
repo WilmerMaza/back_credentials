@@ -22,8 +22,10 @@ export class ListCredentialsHandler
     total: number;
     summary: CredentialStatusSummary;
   }> {
+    await this.repository.expireActiveCredentials();
+
     const [listResult, summary] = await Promise.all([
-      this.repository.findAll(query.page, query.limit),
+      this.repository.findAll(query.page, query.limit, query.status),
       this.repository.countByStatus(),
     ]);
 

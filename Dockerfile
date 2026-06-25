@@ -43,4 +43,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD sh -c 'PORT=${PORT:-3000}; code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:${PORT}/docs || exit 1); [ "$code" -lt 500 ]'
 
-CMD ["dumb-init", "node", "dist/src/main.js"]
+CMD ["dumb-init", "node", "dist/main.js"]

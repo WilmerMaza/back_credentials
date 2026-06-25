@@ -284,7 +284,42 @@ Ejemplo:
 
 ### Listar credenciales
 
-`GET /credentials` devuelve `metadata` en cada ítem y `summary` con conteos por estado.
+`GET /credentials` devuelve `metadata` en cada ítem y `summary` con conteos por estado. Las credenciales con `status: PENDING` aparecen en `data[]` y en `summary.pendientes`.
+
+## Borradores (status PENDING)
+
+Un borrador es una credencial persistida con `status: PENDING`. La validación es relajada: campos de persona, imagen y metadata pueden estar incompletos.
+
+### Crear borrador
+
+`POST /credentials` (multipart/form-data):
+
+| Campo | Borrador | Activación (`ACTIVE`) |
+|-------|----------|------------------------|
+| `status` | `PENDING` (default si se omite) | `ACTIVE` |
+| `firstName`, `lastName`, etc. | Opcionales | Obligatorios |
+| `institutionalEmail` | Opcional (vacío permitido) | Obligatorio, formato email |
+| `image` | Opcional | Obligatorio |
+| `metadata` | Solo valida lo enviado | Schema completo |
+
+Si falta `identityNumber`, el backend genera `DRAFT-{uuid}`. Si falta `credentialTypeCode`, usa `borrador`.
+
+### Actualizar borrador
+
+`PATCH /credentials/:id` con `status: PENDING` — mismas reglas relajadas. Reutilizar el `id` devuelto en el primer guardado.
+
+### Activar credencial
+
+Cuando el envío incluye **todos los campos obligatorios + imagen**, el backend asigna automáticamente `status: ACTIVE`, aunque el frontend envíe `PENDING`. Solo queda `PENDING` si faltan datos.
+
+`PATCH /credentials/:id` con datos completos promueve borradores a `ACTIVE` sin necesidad de enviar `status` explícito (salvo otros estados administrativos como `EXPIRED`).
+
+### Contrato frontend (registration.ts)
+
+1. **Primer guardado:** `POST /credentials` con `status=PENDING` y los datos parciales del formulario. Guardar `response.id` en `localStorage` (`registration_draft_credential_id`).
+2. **Guardados posteriores:** `PATCH /credentials/{id}` con `status=PENDING`.
+3. **Restaurar:** si existe `registration_draft_credential_id`, `GET /credentials/{id}` y rellenar el formulario. Fallback: borrador local legacy (`registration_draft`).
+4. **Registro exitoso:** `PATCH /credentials/{id}` con `status=ACTIVE` y datos completos, o `POST` con `status=ACTIVE` si no hubo borrador en servidor.
 
 ## Flujo frontend
 

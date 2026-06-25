@@ -4,6 +4,7 @@ import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../auth/infrastructure/guards/jwt-auth.guard";
 import { CredentialTypeResponseDto } from "../application/dto/credential-type-response.dto";
 import { CredentialType } from "../domain/credential.entity";
+import { normalizeCredentialTypeCode } from "../domain/credential-type-schema";
 import { GetCredentialTypeQuery } from "../application/queries/get-credential-type.query";
 import { ListCredentialTypesQuery } from "../application/queries/list-credential-types.query";
 
@@ -25,7 +26,9 @@ export class CredentialTypesController {
   @Get(":code")
   @ApiOkResponse({ type: CredentialTypeResponseDto })
   async get(@Param("code") code: string): Promise<CredentialTypeResponseDto> {
-    const found = await this.queryBus.execute(new GetCredentialTypeQuery(code));
+    const found = await this.queryBus.execute(
+      new GetCredentialTypeQuery(normalizeCredentialTypeCode(code)),
+    );
     if (!found) {
       throw new NotFoundException("Credential type not found");
     }

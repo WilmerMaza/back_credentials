@@ -11,7 +11,7 @@ services:
       NODE_ENV: production
     # 🚀 Sincronización segura de base de datos al iniciar
     command: >
-      sh -c "npx prisma migrate deploy && node dist/src/main.js"
+      sh -c "npx prisma migrate deploy && node dist/main.js"
     restart: unless-stopped
 
     ports:

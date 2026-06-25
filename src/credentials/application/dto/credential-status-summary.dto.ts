@@ -6,10 +6,13 @@ export class CredentialStatusSummaryDto {
 
   @ApiProperty({
     example: 5,
-    description: "Credenciales EXPIRED, REVOKED o SUSPENDED",
+    description: "Credenciales EXPIRED, TRANSFERRED, REVOKED o SUSPENDED",
   })
   inactivas!: number;
 
   @ApiProperty({ example: 3, description: "Credenciales con estado PENDING" })
   pendientes!: number;
+
+  @ApiProperty({ example: 2, description: "Credenciales con estado EXPIRED" })
+  expiradas!: number;
 }

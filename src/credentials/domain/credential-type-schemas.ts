@@ -14,6 +14,53 @@ import { CredentialTypeSchema } from "./credential-type-schema";
  *   y se persiste "Infante de marina profesional" (autoValueWhen).
  */
 
+const armyOfficerGrades = [
+  "Subteniente",
+  "Teniente",
+  "Capitan",
+  "Mayor",
+  "Teniente coronel",
+  "Coronel de infantería",
+  "Brigadier General",
+  "Mayor General",
+  "General de ejército",
+] as const;
+
+const armySubofficerGrades = [
+  "Cabo tercero",
+  "Cabo Segundo",
+  "Cabo Primero",
+  "Sargento Segundo",
+  "Sargento Viceprimero",
+  "Sargento primero",
+  "Sargento Mayor",
+  "Sargento mayor de comando",
+  "Sargento Mayor de Comando Conjunto",
+] as const;
+
+const airForceOfficerGrades = [
+  "Subteniente",
+  "Teniente",
+  "Capitan de infantería",
+  "Mayor",
+  "Teniente coronel",
+  "Coronel de infantería",
+  "Brigadier General",
+  "Mayor General",
+  "General del Aire",
+] as const;
+
+const airForceSubofficerGrades = [
+  "Aerotécnico",
+  "Técnico Cuarto",
+  "Técnico Tercero",
+  "Técnico Segundo",
+  "Técnico Primero",
+  "Técnico Subjefe",
+  "Técnico jefe",
+  "Técnico jefe de comando",
+] as const;
+
 export const militarCredentialTypeSchema: CredentialTypeSchema = {
   fields: [
     // Nivel 1: fuerza (select raíz, sin dependsOn)
@@ -31,8 +78,8 @@ export const militarCredentialTypeSchema: CredentialTypeSchema = {
     },
 
     // Nivel 2: categoría filtrada por force
-    // - Armada: optionGroupsByParent (3 grupos con optgroups)
-    // - Ejército / Fuerza Aérea: optionsByParent plano
+    // - Armada: optionGroupsByParent (Oficiales / Suboficiales / IMP)
+    // - Ejército / Fuerza Aérea: Oficial, Suboficial, IMP
     {
       name: "category",
       label: "Categoría",
@@ -86,23 +133,26 @@ export const militarCredentialTypeSchema: CredentialTypeSchema = {
       dependsOn: "category",
       optionsByParent: {
         OfficerNavy: [
-          "Teniente de Corbeta",
+          "Teniente de corbeta",
           "Teniente de Fragata",
           "Teniente de Navio",
-          "Capitan de Corbeta",
-          "Capitan de Fragata",
-          "Capitan de Navio",
+          "Capitan de corbeta",
+          "Capitan de fragata",
+          "Capitan de navío",
           "Contralmirante",
           "Vicealmirante",
+          "Almirante",
         ],
         OfficerIM: [
           "Subteniente",
-          "Teniente Efectivo",
-          "Capitan de Infanteria de Marina",
-          "Mayor de Infanteria de Marina",
-          "Teniente Coronel",
-          "Coronel de Infanteria de Marina",
+          "Teniente efectivo",
+          "Capitan de infantería",
+          "Mayor de infantería de marina",
+          "Teniente coronel",
+          "Coronel de infantería",
           "Brigadier General",
+          "Mayor General",
+          "General",
         ],
         SubofficerNavy: [
           "Marinero Segundo",
@@ -110,55 +160,79 @@ export const militarCredentialTypeSchema: CredentialTypeSchema = {
           "Suboficial Tercero",
           "Suboficial Segundo",
           "Suboficial Primero",
-          "Suboficial Jefe",
-          "Suboficial Jefe Tecnico",
+          "Suboficial jefe",
+          "Suboficial jefe Técnico",
+          "Suboficial jefe técnico de comando",
+          "Suboficial jefe Técnico de Comando Conjunto",
         ],
         SubofficerIM: [
-          "Cabo Tercero",
+          "Cabo tercero",
           "Cabo Segundo",
           "Cabo Primero",
           "Sargento Segundo",
-          "Sargento Viceprimer",
-          "Sargento Primero",
+          "Sargento Viceprimero",
+          "Sargento primero",
           "Sargento Mayor",
+          "Sargento mayor de comando",
+          "Sargento Mayor de Comando Conjunto",
         ],
-        ArmyOfficer: [
-          "Subteniente",
-          "Teniente Efectivo",
-          "Capitan de Infanteria de Marina",
-          "Mayor de Infanteria de Marina",
-          "Teniente Coronel",
-          "Coronel de Infanteria de Marina",
-          "Brigadier General",
-        ],
-        ArmySubofficer: [
-          "Cabo Tercero",
-          "Cabo Segundo",
-          "Cabo Primero",
-          "Sargento Segundo",
-          "Sargento Viceprimer",
-          "Sargento Primero",
-          "Sargento Mayor",
-        ],
-        OfficerAir: [
-          "Teniente de Corbeta",
-          "Teniente de Fragata",
-          "Teniente de Navio",
-          "Capitan de Corbeta",
-          "Capitan de Fragata",
-          "Capitan de Navio",
-          "Contralmirante",
-          "Vicealmirante",
-        ],
-        SubofficerAir: [
-          "Marinero Segundo",
-          "Marinero Primero",
-          "Suboficial Tercero",
-          "Suboficial Segundo",
-          "Suboficial Primero",
-          "Suboficial Jefe",
-          "Suboficial Jefe Tecnico",
-        ],
+        ArmyOfficer: [...armyOfficerGrades],
+        ArmySubofficer: [...armySubofficerGrades],
+        OfficerAir: [...airForceOfficerGrades],
+        SubofficerAir: [...airForceSubofficerGrades],
+      },
+      optionLabels: {
+        "Teniente de corbeta": "Teniente de corbeta (TK)",
+        "Teniente de Fragata": "Teniente de Fragata (TF)",
+        "Teniente de Navio": "Teniente de Navio (TN)",
+        "Capitan de corbeta": "Capitan de corbeta (CC)",
+        "Capitan de fragata": "Capitan de fragata (CF)",
+        "Capitan de navío": "Capitan de navío (CN)",
+        Contralmirante: "Contralmirante (CA)",
+        Vicealmirante: "Vicealmirante (VA)",
+        Almirante: "Almirante (ALM)",
+        Subteniente: "Subteniente (STCIM / ST)",
+        "Teniente efectivo": "Teniente efectivo (TECIM)",
+        "Capitan de infantería": "Capitan de infantería (CTCIM / CT)",
+        "Mayor de infantería de marina": "Mayor de infantería de marina (MYCIM)",
+        "Teniente coronel": "Teniente coronel (TCCIM / TC)",
+        "Coronel de infantería": "Coronel de infantería (CRCIM / CR)",
+        "Brigadier General": "Brigadier General (BGCIM / BG)",
+        "Mayor General": "Mayor General (MGCIM / MG)",
+        General: "General (GRCIM)",
+        "Marinero Segundo": "Marinero Segundo (MA2)",
+        "Marinero Primero": "Marinero Primero (MA1)",
+        "Suboficial Tercero": "Suboficial Tercero (S3)",
+        "Suboficial Segundo": "Suboficial Segundo (S2)",
+        "Suboficial Primero": "Suboficial Primero (S1)",
+        "Suboficial jefe": "Suboficial jefe (SJ)",
+        "Suboficial jefe Técnico": "Suboficial jefe Técnico (SJT)",
+        "Suboficial jefe técnico de comando": "Suboficial jefe técnico de comando (SJTC)",
+        "Suboficial jefe Técnico de Comando Conjunto":
+          "Suboficial jefe Técnico de Comando Conjunto (SJTCC)",
+        "Cabo tercero": "Cabo tercero (C3)",
+        "Cabo Segundo": "Cabo Segundo (CS)",
+        "Cabo Primero": "Cabo Primero (CP)",
+        "Sargento Segundo": "Sargento Segundo (SS)",
+        "Sargento Viceprimero": "Sargento Viceprimero (SV)",
+        "Sargento primero": "Sargento primero (SP)",
+        "Sargento Mayor": "Sargento Mayor (SM)",
+        "Sargento mayor de comando": "Sargento mayor de comando (SMC)",
+        "Sargento Mayor de Comando Conjunto":
+          "Sargento Mayor de Comando Conjunto (SMC)",
+        Teniente: "Teniente (TE)",
+        Capitan: "Capitan (CT)",
+        Mayor: "Mayor (MY)",
+        "General de ejército": "General de ejército (GDE)",
+        "General del Aire": "General del Aire (GR)",
+        Aerotécnico: "Aerotécnico (AT)",
+        "Técnico Cuarto": "Técnico Cuarto (T4)",
+        "Técnico Tercero": "Técnico Tercero (T3)",
+        "Técnico Segundo": "Técnico Segundo (T2)",
+        "Técnico Primero": "Técnico Primero (T1)",
+        "Técnico Subjefe": "Técnico Subjefe (TS)",
+        "Técnico jefe": "Técnico jefe (TJ)",
+        "Técnico jefe de comando": "Técnico jefe de comando (TJC)",
       },
       hiddenWhen: {
         field: "category",
@@ -184,24 +258,44 @@ export const militarCredentialTypeSchema: CredentialTypeSchema = {
 };
 
 /**
- * Cadetes (antes inter-escuelas).
+ * Alumnos BAENA (antes cadetes).
  *
- * Jerarquía lógica: grado → compañía → curso
- * (grado va primero en fields porque compañía/curso dependen de la regla Aspirante)
- *
- * Regla Aspirante:
- *   defaultValueWhen + autoValueWhen → sugerir y persistir Binney / 1.1.
+ * Cascada: grado → compañía → curso
+ * (compañía y curso sin opciones hasta completar los campos obligatorios previos)
  */
-export const cadetesCredentialTypeSchema: CredentialTypeSchema = {
+
+const alumnosBaenaCompanias = ["binney", "tono", "brion", "padilla"] as const;
+
+const alumnosBaenaCursos = [
+  "1.1",
+  "1.2",
+  "2.1",
+  "2.2",
+  "3.1",
+  "3.2",
+  "4.1",
+  "4.2",
+] as const;
+
+const alumnosBaenaCompaniasByGrado = {
+  cadete: [...alumnosBaenaCompanias],
+  guardiamarina: [...alumnosBaenaCompanias],
+  alferez: [...alumnosBaenaCompanias],
+};
+
+const alumnosBaenaCursosByCompania = Object.fromEntries(
+  alumnosBaenaCompanias.map((compania) => [compania, [...alumnosBaenaCursos]]),
+) as Record<string, string[]>;
+
+export const alumnosBaenaCredentialTypeSchema: CredentialTypeSchema = {
   fields: [
     {
       name: "grado",
       label: "Grado",
       type: "select",
       required: true,
-      options: ["aspirante", "cadete", "guardiamarina", "alferez"],
+      options: ["cadete", "guardiamarina", "alferez"],
       optionLabels: {
-        aspirante: "Aspirante",
         cadete: "Cadete",
         guardiamarina: "Guardiamarina",
         alferez: "Alférez",
@@ -212,24 +306,13 @@ export const cadetesCredentialTypeSchema: CredentialTypeSchema = {
       label: "Compañía",
       type: "select",
       required: true,
-      options: ["binney", "tono", "brion", "padilla"],
+      dependsOn: "grado",
+      optionsByParent: alumnosBaenaCompaniasByGrado,
       optionLabels: {
         binney: "Binney",
         tono: "Tono",
         brion: "Brion",
         padilla: "Padilla",
-      },
-      autoValueWhen: {
-        field: "grado",
-        values: {
-          aspirante: "binney",
-        },
-      },
-      defaultValueWhen: {
-        field: "grado",
-        values: {
-          aspirante: "binney",
-        },
       },
     },
     {
@@ -237,19 +320,8 @@ export const cadetesCredentialTypeSchema: CredentialTypeSchema = {
       label: "Curso",
       type: "select",
       required: true,
-      options: ["1.1", "1.2", "2.1", "2.2", "3.1", "3.2", "4.1", "4.2"],
-      autoValueWhen: {
-        field: "grado",
-        values: {
-          aspirante: "1.1",
-        },
-      },
-      defaultValueWhen: {
-        field: "grado",
-        values: {
-          aspirante: "1.1",
-        },
-      },
+      dependsOn: "compania",
+      optionsByParent: alumnosBaenaCursosByCompania,
     },
   ],
 };

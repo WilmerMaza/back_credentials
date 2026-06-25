@@ -10,8 +10,10 @@ import {
 import { Response } from "express";
 import { existsSync } from "fs";
 import { join } from "path";
+import { SkipThrottle } from "@nestjs/throttler";
 import { JwtAuthGuard } from "../../auth/infrastructure/guards/jwt-auth.guard";
 
+@SkipThrottle()
 @Controller("uploads/credentials")
 export class UploadsController {
   @Get(":filename")

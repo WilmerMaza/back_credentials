@@ -7,12 +7,14 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { Throttle } from "@nestjs/throttler";
 import {
   ApiBody,
   ApiConsumes,
   ApiCreatedResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import { THROTTLE_MAIL } from "../common/config/throttle.config";
 import { SendEmailDto, SendEmailRequestDto } from "./dto/send-email.dto";
 import { pdfMulterOptions } from "./infrastructure/storage/pdf-multer-options";
 import { MailService } from "./mail.service";
@@ -22,6 +24,7 @@ import { MailService } from "./mail.service";
 export class MailController {
   constructor(private readonly mailService: MailService) {}
 
+  @Throttle(THROTTLE_MAIL)
   @Post("send-email")
   @ApiConsumes("multipart/form-data")
   @ApiBody({ type: SendEmailRequestDto })

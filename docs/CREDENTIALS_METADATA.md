@@ -261,8 +261,9 @@ Las respuestas de lectura exponen claves canónicas (`category`, `grades`).
 
 Campos comunes:
 
-- fullName, identityNumber, typeIdentity, birthDate, institutionalEmail
+- firstName, lastName, identityNumber, typeIdentity, birthDate, institutionalEmail
 - credentialTypeCode, image, expirationDate (opcional)
+- `fullName` se calcula en backend y se persiste en BD (no se envía desde el front)
 
 Campos dinámicos:
 

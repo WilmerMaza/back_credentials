@@ -1,6 +1,7 @@
 import { Controller, Get, NotFoundException, Param, UseGuards } from "@nestjs/common";
 import { QueryBus } from "@nestjs/cqrs";
 import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { SkipThrottle } from "@nestjs/throttler";
 import { JwtAuthGuard } from "../../auth/infrastructure/guards/jwt-auth.guard";
 import { CredentialTypeResponseDto } from "../application/dto/credential-type-response.dto";
 import { CredentialType } from "../domain/credential.entity";
@@ -9,6 +10,7 @@ import { GetCredentialTypeQuery } from "../application/queries/get-credential-ty
 import { ListCredentialTypesQuery } from "../application/queries/list-credential-types.query";
 
 @ApiTags("credential-types")
+@SkipThrottle()
 @UseGuards(JwtAuthGuard)
 @Controller("credential-types")
 export class CredentialTypesController {

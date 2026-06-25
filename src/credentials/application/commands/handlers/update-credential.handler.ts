@@ -17,7 +17,11 @@ export class UpdateCredentialHandler
   ) {}
 
   async execute(command: UpdateCredentialCommand): Promise<Credential> {
-    const updated = await this.repository.update(command.id, command.data);
+    const updated = await this.repository.update(
+      command.id,
+      command.data,
+      command.actor,
+    );
     if (!updated) {
       throw new NotFoundException("Credential not found");
     }

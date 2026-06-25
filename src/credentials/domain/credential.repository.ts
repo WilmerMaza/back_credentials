@@ -1,6 +1,7 @@
 import { Credential, CredentialType } from "./credential.entity";
 import { CredentialMetadata } from "./credential-type-schema";
 import { CredentialStatus } from "./credential-status";
+import { AuditActor, CredentialAuditLogEntry } from "./credential-audit.types";
 
 export interface CredentialPersonData {
   firstName: string;
@@ -45,7 +46,17 @@ export interface CredentialRepository {
   expireActiveCredentials(): Promise<number>;
   create(data: CreateCredentialData): Promise<Credential>;
   update(id: string, data: UpdateCredentialData): Promise<Credential | null>;
+  create(data: CreateCredentialData, actor: AuditActor): Promise<Credential>;
+  update(
+    id: string,
+    data: UpdateCredentialData,
+    actor: AuditActor,
+  ): Promise<Credential | null>;
   findById(id: string): Promise<Credential | null>;
+  findByIdentityAndType(
+    identityNumber: string,
+    credentialTypeCode: string,
+  ): Promise<Credential | null>;
   findAll(
     page?: number,
     limit?: number,
@@ -54,6 +65,11 @@ export interface CredentialRepository {
   countByStatus(): Promise<CredentialStatusSummary>;
   findAllTypes(): Promise<CredentialType[]>;
   findTypeByCode(code: string): Promise<CredentialType | null>;
+  findAuditLogsByCredentialId(
+    credentialId: string,
+    page?: number,
+    limit?: number,
+  ): Promise<{ data: CredentialAuditLogEntry[]; total: number }>;
 }
 
 export const CREDENTIAL_REPOSITORY = "CREDENTIAL_REPOSITORY";

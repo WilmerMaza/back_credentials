@@ -4,14 +4,17 @@ import {
 } from "@nestjs/common";
 import { CredentialStatus, Prisma } from "@prisma/client";
 import { startOfDayBogota } from "../../common/utils/bogota-date";
+import { CredentialStatus, CredentialAuditAction, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { MetadataSchemaValidator } from "../application/services/metadata-schema.validator";
+import { toCredentialAuditSnapshot } from "../application/utils/credential-audit.snapshot";
 import {
   CreateCredentialData,
   CredentialRepository,
   CredentialStatusSummary,
   UpdateCredentialData,
 } from "../domain/credential.repository";
+import { AuditActor, CredentialAuditLogEntry } from "../domain/credential-audit.types";
 import { Credential, CredentialType } from "../domain/credential.entity";
 import { applyExpirationToStatus } from "../domain/credential-expiration";
 import {
@@ -47,6 +50,7 @@ export class CredentialPrismaRepository implements CredentialRepository {
   }
 
   async create(data: CreateCredentialData): Promise<Credential> {
+  async create(data: CreateCredentialData, actor: AuditActor): Promise<Credential> {
     const credentialType = await this.prisma.credentialType.upsert({
       where: { code: data.credentialTypeCode },
       update: {},
@@ -99,20 +103,46 @@ export class CredentialPrismaRepository implements CredentialRepository {
         person: { connect: { id: person.id } },
         credentialType: {
           connect: { id: credentialType.id },
+    const created = await this.prisma.$transaction(async (tx) => {
+      const credential = await tx.credential.create({
+        data: {
+          details: data.details,
+          metadata: validatedMetadata as Prisma.InputJsonValue,
+          imagePath: data.imagePath,
+          expirationDate: data.expirationDate ?? undefined,
+          person: { connect: { id: person.id } },
+          credentialType: {
+            connect: { id: credentialType.id },
+          },
         },
-      },
-      include: {
-        person: true,
-        credentialType: true,
-      },
+        include: {
+          person: true,
+          credentialType: true,
+        },
+      });
+
+      const domainCredential = toDomain(credential);
+
+      await tx.credentialAuditLog.create({
+        data: {
+          credentialId: credential.id,
+          action: CredentialAuditAction.CREATE,
+          userId: actor.userId,
+          userEmail: actor.email,
+          after: toCredentialAuditSnapshot(domainCredential) as Prisma.InputJsonValue,
+        },
+      });
+
+      return domainCredential;
     });
 
-    return toDomain(created);
+    return created;
   }
 
   async update(
     id: string,
     data: UpdateCredentialData,
+    actor: AuditActor,
   ): Promise<Credential | null> {
     const existing = await this.prisma.credential.findUnique({
       where: { id },
@@ -206,21 +236,96 @@ export class CredentialPrismaRepository implements CredentialRepository {
             identityNumber: data.person.identityNumber,
             birthDate: data.person.birthDate,
             institutionalEmail: data.person.institutionalEmail,
+    const beforeSnapshot = toCredentialAuditSnapshot(toDomain(existing));
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const credential = await tx.credential.update({
+        where: { id },
+        data: {
+          details: data.details,
+          metadata: validatedMetadata as Prisma.InputJsonValue,
+          expirationDate: data.expirationDate ?? undefined,
+          imagePath: data.imagePath ?? existing.imagePath ?? undefined,
+          ...(data.status ? { status: data.status as CredentialStatus } : {}),
+          credentialType: {
+            connect: { id: credentialType.id },
+          },
+          person: {
+            update: {
+              firstName: data.person.firstName,
+              lastName: data.person.lastName,
+              fullName: data.person.fullName,
+              typeIdentity: data.person.typeIdentity,
+              identityNumber: data.person.identityNumber,
+              birthDate: data.person.birthDate,
+              institutionalEmail: data.person.institutionalEmail,
+            },
           },
         },
-      },
+        include: {
+          person: true,
+          credentialType: true,
+        },
+      });
+
+      const domainCredential = toDomain(credential);
+
+      await tx.credentialAuditLog.create({
+        data: {
+          credentialId: credential.id,
+          action: CredentialAuditAction.UPDATE,
+          userId: actor.userId,
+          userEmail: actor.email,
+          before: beforeSnapshot as Prisma.InputJsonValue,
+          after: toCredentialAuditSnapshot(domainCredential) as Prisma.InputJsonValue,
+        },
+      });
+
+      return domainCredential;
+    });
+
+    return updated;
+  }
+
+  async findById(id: string): Promise<Credential | null> {
+    const found = await this.prisma.credential.findUnique({
+      where: { id },
       include: {
         person: true,
         credentialType: true,
       },
     });
 
-    return toDomain(updated);
+    return found ? toDomain(found) : null;
   }
 
-  async findById(id: string): Promise<Credential | null> {
-    const found = await this.prisma.credential.findUnique({
-      where: { id },
+  async findByIdentityAndType(
+    identityNumber: string,
+    credentialTypeCode: string,
+  ): Promise<Credential | null> {
+    const normalizedIdentity = identityNumber.trim();
+    const normalizedType = credentialTypeCode.trim().toLowerCase();
+
+    if (!normalizedIdentity || !normalizedType) {
+      return null;
+    }
+
+    const found = await this.prisma.credential.findFirst({
+      where: {
+        person: {
+          identityNumber: {
+            equals: normalizedIdentity,
+            mode: "insensitive",
+          },
+        },
+        credentialType: {
+          code: {
+            equals: normalizedType,
+            mode: "insensitive",
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
       include: {
         person: true,
         credentialType: true,
@@ -337,5 +442,37 @@ export class CredentialPrismaRepository implements CredentialRepository {
     });
 
     return found ? toCredentialType(found) : null;
+  }
+
+  async findAuditLogsByCredentialId(
+    credentialId: string,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<{ data: CredentialAuditLogEntry[]; total: number }> {
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      this.prisma.credentialAuditLog.findMany({
+        where: { credentialId },
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.credentialAuditLog.count({ where: { credentialId } }),
+    ]);
+
+    return {
+      data: items.map((item) => ({
+        id: item.id,
+        credentialId: item.credentialId,
+        action: item.action,
+        userId: item.userId,
+        userEmail: item.userEmail,
+        before: item.before as Record<string, unknown> | null,
+        after: item.after as Record<string, unknown>,
+        createdAt: item.createdAt,
+      })),
+      total,
+    };
   }
 }

@@ -44,8 +44,6 @@ export interface CredentialStatusSummary {
 
 export interface CredentialRepository {
   expireActiveCredentials(): Promise<number>;
-  create(data: CreateCredentialData): Promise<Credential>;
-  update(id: string, data: UpdateCredentialData): Promise<Credential | null>;
   create(data: CreateCredentialData, actor: AuditActor): Promise<Credential>;
   update(
     id: string,

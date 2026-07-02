@@ -41,8 +41,7 @@ const QueryHandlers = [
 ];
 
 @Module({
-  imports: [CqrsModule, PrismaModule, ScheduleModule.forRoot()],
-  imports: [CqrsModule, PrismaModule, MailModule],
+  imports: [CqrsModule, PrismaModule, ScheduleModule.forRoot(), MailModule],
   controllers: [
     CredentialsController,
     CredentialTypesController,

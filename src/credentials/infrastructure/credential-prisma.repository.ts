@@ -2,9 +2,12 @@ import {
   ConflictException,
   Injectable,
 } from "@nestjs/common";
-import { CredentialStatus, Prisma } from "@prisma/client";
+import {
+  CredentialAuditAction,
+  CredentialStatus as PrismaCredentialStatus,
+  Prisma,
+} from "@prisma/client";
 import { startOfDayBogota } from "../../common/utils/bogota-date";
-import { CredentialStatus, CredentialAuditAction, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { MetadataSchemaValidator } from "../application/services/metadata-schema.validator";
 import { toCredentialAuditSnapshot } from "../application/utils/credential-audit.snapshot";
@@ -49,7 +52,6 @@ export class CredentialPrismaRepository implements CredentialRepository {
     return Number(updated);
   }
 
-  async create(data: CreateCredentialData): Promise<Credential> {
   async create(data: CreateCredentialData, actor: AuditActor): Promise<Credential> {
     const credentialType = await this.prisma.credentialType.upsert({
       where: { code: data.credentialTypeCode },
@@ -93,23 +95,14 @@ export class CredentialPrismaRepository implements CredentialRepository {
       data.expirationDate,
     );
 
-    const created = await this.prisma.credential.create({
-      data: {
-        details: data.details,
-        metadata: validatedMetadata as Prisma.InputJsonValue,
-        imagePath: data.imagePath ?? undefined,
-        expirationDate: data.expirationDate ?? undefined,
-        status,
-        person: { connect: { id: person.id } },
-        credentialType: {
-          connect: { id: credentialType.id },
     const created = await this.prisma.$transaction(async (tx) => {
       const credential = await tx.credential.create({
         data: {
           details: data.details,
           metadata: validatedMetadata as Prisma.InputJsonValue,
-          imagePath: data.imagePath,
+          imagePath: data.imagePath ?? undefined,
           expirationDate: data.expirationDate ?? undefined,
+          status: status as PrismaCredentialStatus,
           person: { connect: { id: person.id } },
           credentialType: {
             connect: { id: credentialType.id },
@@ -216,26 +209,6 @@ export class CredentialPrismaRepository implements CredentialRepository {
         )
       : undefined;
 
-    const updated = await this.prisma.credential.update({
-      where: { id },
-      data: {
-        details: data.details,
-        metadata: validatedMetadata as Prisma.InputJsonValue,
-        expirationDate: data.expirationDate ?? undefined,
-        imagePath: data.imagePath ?? existing.imagePath ?? undefined,
-        ...(nextStatus ? { status: nextStatus } : {}),
-        credentialType: {
-          connect: { id: credentialType.id },
-        },
-        person: {
-          update: {
-            firstName: data.person.firstName,
-            lastName: data.person.lastName,
-            fullName: data.person.fullName,
-            typeIdentity: data.person.typeIdentity,
-            identityNumber: data.person.identityNumber,
-            birthDate: data.person.birthDate,
-            institutionalEmail: data.person.institutionalEmail,
     const beforeSnapshot = toCredentialAuditSnapshot(toDomain(existing));
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -246,7 +219,9 @@ export class CredentialPrismaRepository implements CredentialRepository {
           metadata: validatedMetadata as Prisma.InputJsonValue,
           expirationDate: data.expirationDate ?? undefined,
           imagePath: data.imagePath ?? existing.imagePath ?? undefined,
-          ...(data.status ? { status: data.status as CredentialStatus } : {}),
+          ...(nextStatus
+            ? { status: nextStatus as PrismaCredentialStatus }
+            : {}),
           credentialType: {
             connect: { id: credentialType.id },
           },
@@ -378,16 +353,16 @@ export class CredentialPrismaRepository implements CredentialRepository {
     if (values.includes("EXPIRED")) {
       return {
         OR: [
-          { status: CredentialStatus.EXPIRED },
+          { status: PrismaCredentialStatus.EXPIRED },
           {
-            status: CredentialStatus.ACTIVE,
+            status: PrismaCredentialStatus.ACTIVE,
             expirationDate: { lt: startOfDayBogota() },
           },
         ],
       };
     }
 
-    return { status: { in: values } };
+    return { status: { in: values as PrismaCredentialStatus[] } };
   }
 
   async countByStatus(): Promise<CredentialStatusSummary> {
@@ -407,19 +382,19 @@ export class CredentialPrismaRepository implements CredentialRepository {
       const count = group._count.status;
 
       switch (group.status) {
-        case CredentialStatus.ACTIVE:
+        case PrismaCredentialStatus.ACTIVE:
           summary.activas += count;
           break;
-        case CredentialStatus.PENDING:
+        case PrismaCredentialStatus.PENDING:
           summary.pendientes += count;
           break;
-        case CredentialStatus.EXPIRED:
+        case PrismaCredentialStatus.EXPIRED:
           summary.expiradas += count;
           summary.inactivas += count;
           break;
-        case CredentialStatus.TRANSFERRED:
-        case CredentialStatus.REVOKED:
-        case CredentialStatus.SUSPENDED:
+        case PrismaCredentialStatus.TRANSFERRED:
+        case PrismaCredentialStatus.REVOKED:
+        case PrismaCredentialStatus.SUSPENDED:
           summary.inactivas += count;
           break;
       }

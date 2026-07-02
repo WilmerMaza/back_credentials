@@ -70,31 +70,42 @@ Se registra como `APP_GUARD` global, por lo que se evalúa **antes** de llegar a
 
 ---
 
-## 3. JWT y sesión
+## 3. Autenticación HttpOnly + sesiones
 
-**Archivos:** `src/auth/`, `src/auth/infrastructure/strategies/jwt.strategy.ts`
+**Documentación completa:** [AUTH_DEPLOYMENT.md](./AUTH_DEPLOYMENT.md)
 
-### Emisión del token
+### Cookies
 
-- `POST /auth/login` y `POST /auth/refresh` setean cookie:
-  - Nombre: `access_token`
-  - `httpOnly: true` (no accesible desde `document.cookie` en JS)
-  - `maxAge: 3600000` (1 hora)
-  - `sameSite`: configurable vía `AUTH_COOKIE_SAMESITE`
+| Cookie | HttpOnly | Path | TTL |
+|--------|----------|------|-----|
+| `access_token` | sí | `/` | 15 min (`JWT_ACCESS_TTL`) |
+| `refresh_token` | sí | `/auth/refresh` | 7–30 días |
+| `csrf_token` | no | `/` | 24 h |
 
-### Extracción del token (orden)
+### Sesiones (PostgreSQL)
+
+Cada login crea un registro en `Session` con refresh opaco (hash SHA-256), `familyId` para detectar reutilización, y revocación en logout / cambio de contraseña.
+
+### CSRF
+
+Double-submit: cookie `csrf_token` + header `X-CSRF-Token` en mutaciones (POST/PATCH/DELETE). Excluido en login, register y refresh.
+
+### Extracción del access token
 
 1. Cookie `access_token`
-2. Header `Authorization: Bearer <token>`
-3. Query `?token=<token>` (legacy)
+2. Header `Authorization: Bearer` (opcional, herramientas)
 
-### Rutas con `@UseGuards(JwtAuthGuard)`
+### Variables
 
-- `GET/POST/PATCH /credentials*`
-- `GET /credential-types*`
-- `GET /validations/*`
-- `GET /uploads/credentials/:filename`
-- `GET /auth/me`, `POST /auth/refresh`
+```env
+JWT_ACCESS_TTL=15m
+REFRESH_TOKEN_TTL_DAYS=7
+AUTH_COOKIE_SAMESITE=lax
+AUTH_COOKIE_SECURE=false
+CORS_ORIGINS=http://localhost:4200
+CSRF_ENABLED=true
+ADMIN_USER_IDS=
+```
 
 ---
 
@@ -149,14 +160,19 @@ Nombres de archivo: `timestamp-uuid.ext` (evita sobrescritura y nombres predecib
 
 ---
 
-## 7. CORS
+## 7. CORS y Helmet
 
 ```typescript
-app.enableCors({ origin: true, credentials: true });
+// main.ts
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.enableCors({
+  origin: parseCorsOrigins(process.env.CORS_ORIGINS),
+  credentials: true,
+});
 ```
 
-- `credentials: true` permite envío de cookies JWT desde el frontend.
-- **Recomendación producción:** reemplazar `origin: true` por lista explícita de dominios.
+- `credentials: true` permite cookies HttpOnly desde el frontend.
+- **Producción:** `CORS_ORIGINS` con lista explícita (ej. `https://app.midominio.com`).
 
 ---
 

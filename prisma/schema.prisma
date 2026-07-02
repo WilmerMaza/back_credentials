@@ -35,6 +35,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   credentialAuditLogs CredentialAuditLog[]
+  sessions            Session[]
 }
 
 model CredentialType {
@@ -102,4 +103,23 @@ enum CredentialStatus {
   TRANSFERRED
   REVOKED
   SUSPENDED
+}
+
+model Session {
+  id               String    @id @default(cuid())
+  userId           String
+  refreshTokenHash String    @unique
+  familyId         String
+  userAgent        String?
+  ipAddress        String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  lastUsedAt       DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
 }

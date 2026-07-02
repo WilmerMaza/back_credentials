@@ -44,4 +44,11 @@ export class UserPrismaRepository implements UserRepository {
       personId: created.personId ?? undefined,
     };
   }
+
+  async updatePassword(userId: string, passwordHash: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: passwordHash },
+    });
+  }
 }

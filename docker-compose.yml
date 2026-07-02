@@ -9,18 +9,24 @@ services:
     env_file: .env
     environment:
       NODE_ENV: production
-      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost}
-    # 🚀 Sincronización segura de base de datos al iniciar
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-https://credenciales.enap.edu.co}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://credenciales.enap.edu.co}
+      AUTH_COOKIE_SAMESITE: ${AUTH_COOKIE_SAMESITE:-lax}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
     command: >
       sh -c "npx prisma migrate deploy && node dist/main.js"
     restart: unless-stopped
-
-    ports:
-      - "3000:3000"
+    # Solo red interna Docker; el API público es https://credenciales.enap.edu.co/api/
+    expose:
+      - "3000"
+    # Descomentar solo para depuración local directa al backend:
+    # ports:
+    #   - "3000:3000"
     volumes:
       - uploads-data:/app/uploads
     networks:
       - internal
+      - db
     healthcheck:
       test: ["CMD-SHELL", "PORT=$${PORT:-3000}; code=$$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$${PORT}/docs || exit 1); [ \"$${code}\" -lt 500 ]"]
       interval: 30s
@@ -40,7 +46,8 @@ services:
     image: front-credentials:latest
     container_name: frontend-credentials
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
       - "80:80"
     networks:
@@ -50,6 +57,9 @@ services:
 networks:
   internal:
     driver: bridge
+  db:
+    external: true
+    name: db_credencial_back-network
 
 volumes:
   uploads-data:

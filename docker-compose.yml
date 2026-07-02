@@ -10,7 +10,7 @@ services:
     environment:
       NODE_ENV: production
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-https://credenciales.enap.edu.co}
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://credenciales.enap.edu.co}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://credenciales.enap.edu.co,https://credenciales.enap,http://credenciales.enap.edu.co,http://credenciales.enap}
       AUTH_COOKIE_SAMESITE: ${AUTH_COOKIE_SAMESITE:-lax}
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
     command: >

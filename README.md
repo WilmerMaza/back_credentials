@@ -107,7 +107,10 @@ cp .env.example .env
 | `API_KEY` | Clave opcional global (`x-api-key`). Vacío = desactivado | `""` |
 | `UPLOADS_DIR` | Directorio de imágenes | `uploads/credentials` |
 | `NODE_ENV` | Entorno | `development` / `production` |
-| `AUTH_COOKIE_SAMESITE` | Cookie de sesión: `none` (dev cross-origin) o `lax` (prod) | `none` |
+| `AUTH_COOKIE_SECURE` | Cookies solo por HTTPS. `false` sin certificado; `true` con HTTPS | `false` |
+| `PUBLIC_APP_URL` | URL pública del front (QR en PDF) | `https://credenciales.enap.edu.co` |
+| `CORS_ORIGINS` | Orígenes CORS (lista separada por coma) | ver `.env.example` |
+| `AUTH_COOKIE_SAMESITE` | Cookie de sesión: `lax` (prod Docker) o `none` (dev cross-origin) | `lax` |
 | `AZURE_TENANT_ID` | Tenant Azure AD para correo | UUID |
 | `AZURE_CLIENT_ID` | App registrada en Azure | UUID |
 | `AZURE_CLIENT_SECRET` | Secreto de la app | string |
@@ -151,18 +154,27 @@ npm run start:prod
 
 ## Docker
 
-El `docker-compose.yml` levanta **API + frontend**:
+El `docker-compose.yml` levanta **API + frontend**. El reverse proxy (Nginx) vive **dentro del contenedor frontend**, no en el servidor host.
 
-| Servicio | Puerto | Descripción |
-|----------|--------|-------------|
-| `api` | `3000` | Backend NestJS |
-| `frontend` | `80` | Angular + Nginx (proxy `/api` → API) |
+| Servicio | Puerto público | Descripción |
+|----------|----------------|-------------|
+| `frontend` | `80` | Angular + Nginx: SPA y proxy `/api/*` → API |
+| `api` | *(solo red interna)* | NestJS en `:3000`, no expuesto al exterior |
+
+**Orden:** primero `../db_credencial`, luego `back`.
 
 ```bash
-docker compose up -d --build
+cd ../db_credencial && docker compose up -d
+cd ../back && npm run docker:clean
 ```
 
-Al iniciar, el contenedor `api` ejecuta automáticamente `prisma migrate deploy`.
+Guía operativa: **[docs/DOCKER_DEPLOYMENT.md](docs/DOCKER_DEPLOYMENT.md)**.
+
+Nginx activo: `frontend_credentials_21/nginx/nginx.conf`
+
+Cuando llegue el certificado SSL: **[docs/SSL_CERTIFICATE.md](docs/SSL_CERTIFICATE.md)**.
+
+Al iniciar, el contenedor `api` ejecuta `prisma migrate deploy` vía `scripts/docker-entrypoint.sh`.
 
 ---
 
@@ -483,7 +495,7 @@ DTOs con `class-validator`: `@IsEmail()`, `@IsNotEmpty()`, `@IsDateString()`, et
 | JSON / urlencoded | `MAX_PDF_SIZE_MB` (default 25 MB) | `main.ts` → `bodyLimit` |
 | Imagen credencial | **5 MB** | `multer-options.ts` → `fileSize` |
 | PDF correo | `MAX_PDF_SIZE_MB` (default 25 MB) | `pdf-multer-options.ts` |
-| Nginx (proxy) | **25 MB** | `nginx/default.conf` → `client_max_body_size` |
+| Nginx Docker (proxy) | **25 MB** | `frontend_credentials_21/nginx/nginx.conf` → `client_max_body_size` |
 
 ### Validación de archivos (Multer)
 
@@ -586,9 +598,14 @@ back/
 
 | Documento | Contenido |
 |-----------|-----------|
+| [docs/ARQUITECTURA_Y_EVALUACION.md](./docs/ARQUITECTURA_Y_EVALUACION.md) | Evaluación de arquitectura, proxy institucional, camino correcto |
+| [docs/DOCKER_DEPLOYMENT.md](./docs/DOCKER_DEPLOYMENT.md) | Despliegue Docker, migraciones, build limpio |
+| [docs/AUTH_DEPLOYMENT.md](./docs/AUTH_DEPLOYMENT.md) | Cookies, CSRF, proxy `/api`, DEV y Docker |
+| [docs/SSL_CERTIFICATE.md](./docs/SSL_CERTIFICATE.md) | Qué hacer cuando llegue el certificado HTTPS |
 | [docs/CREDENTIALS_METADATA.md](./docs/CREDENTIALS_METADATA.md) | Arquitectura metadata + JSON Schema |
 | [docs/SECURITY.md](./docs/SECURITY.md) | Rate limiting, guards, JWT, uploads |
-| [Swagger](http://localhost:3000/docs) | Referencia interactiva de la API |
+| [Swagger](http://localhost:3000/docs) | Referencia interactiva de la API (dev directo) |
+| [Swagger vía proxy](http://localhost/api/docs) | Referencia con Docker (`:80`) |
 
 ---
 

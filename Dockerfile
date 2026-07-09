@@ -11,6 +11,9 @@ RUN npm ci
 
 # Build de la aplicación
 FROM deps AS builder
+ARG BUILD_REV=dev
+LABEL build.rev=$BUILD_REV
+RUN echo "back-credentials build @ ${BUILD_REV}"
 COPY . .
 RUN npx prisma generate
 # Asegura permisos de ejecución del binario de Nest dentro de node_modules
@@ -26,8 +29,10 @@ WORKDIR /app
 ENV NODE_ENV=production
 # Usuario no-root
 RUN addgroup -S nodejs && adduser -S nest -G nodejs
-# Utilidades mínimas para healthcheck/init
-RUN apk add --no-cache dumb-init curl openssl
+# Utilidades mínimas para healthcheck, migraciones y arranque
+RUN apk add --no-cache dumb-init curl openssl postgresql-client
+COPY scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 COPY --from=builder --chown=nest:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nest:nodejs /app/dist ./dist
 COPY --from=builder --chown=nest:nodejs /app/package*.json ./
@@ -43,4 +48,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD sh -c 'PORT=${PORT:-3000}; code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:${PORT}/docs || exit 1); [ "$code" -lt 500 ]'
 
-CMD ["dumb-init", "node", "dist/main.js"]
+ENTRYPOINT ["dumb-init", "/app/docker-entrypoint.sh"]
+CMD ["node", "dist/main.js"]

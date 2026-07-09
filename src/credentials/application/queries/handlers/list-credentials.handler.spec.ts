@@ -64,8 +64,12 @@ describe("ListCredentialsHandler", () => {
     };
 
     const handler = new ListCredentialsHandler(repository);
-    await handler.execute(new ListCredentialsQuery(1, 10, "EXPIRED"));
+    await handler.execute(
+      new ListCredentialsQuery(1, 10, { status: "EXPIRED" }),
+    );
 
-    expect(repository.findAll).toHaveBeenCalledWith(1, 10, "EXPIRED");
+    expect(repository.findAll).toHaveBeenCalledWith(1, 10, {
+      status: "EXPIRED",
+    });
   });
 });

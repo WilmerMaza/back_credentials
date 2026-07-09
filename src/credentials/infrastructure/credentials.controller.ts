@@ -296,6 +296,9 @@ export class CredentialsController {
     @Query("page") page?: string,
     @Query("limit") limit?: string,
     @Query("status") status?: string,
+    @Query("name") name?: string,
+    @Query("email") email?: string,
+    @Query("identity") identity?: string,
   ) {
     const parsedPage = parseInt(page as string, 10);
     const parsedLimit = parseInt(limit as string, 10);
@@ -307,8 +310,15 @@ export class CredentialsController {
       this.resolveStatus(statusFilter);
     }
 
+    const filters = {
+      status: statusFilter,
+      name: name?.trim() || undefined,
+      email: email?.trim() || undefined,
+      identity: identity?.trim() || undefined,
+    };
+
     const result = await this.queryBus.execute(
-      new ListCredentialsQuery(pageNumber, limitNumber, statusFilter),
+      new ListCredentialsQuery(pageNumber, limitNumber, filters),
     );
 
     return {

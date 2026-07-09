@@ -42,6 +42,13 @@ export interface CredentialStatusSummary {
   expiradas: number;
 }
 
+export interface CredentialListFilters {
+  status?: string;
+  name?: string;
+  email?: string;
+  identity?: string;
+}
+
 export interface CredentialRepository {
   expireActiveCredentials(): Promise<number>;
   create(data: CreateCredentialData, actor: AuditActor): Promise<Credential>;
@@ -58,7 +65,7 @@ export interface CredentialRepository {
   findAll(
     page?: number,
     limit?: number,
-    status?: string,
+    filters?: CredentialListFilters,
   ): Promise<{ data: Credential[]; total: number }>;
   countByStatus(): Promise<CredentialStatusSummary>;
   findAllTypes(): Promise<CredentialType[]>;

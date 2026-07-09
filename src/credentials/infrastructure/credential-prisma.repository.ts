@@ -13,6 +13,7 @@ import { MetadataSchemaValidator } from "../application/services/metadata-schema
 import { toCredentialAuditSnapshot } from "../application/utils/credential-audit.snapshot";
 import {
   CreateCredentialData,
+  CredentialListFilters,
   CredentialRepository,
   CredentialStatusSummary,
   UpdateCredentialData,
@@ -313,9 +314,9 @@ export class CredentialPrismaRepository implements CredentialRepository {
   async findAll(
     page: number = 1,
     limit: number = 10,
-    status?: string,
+    filters?: CredentialListFilters,
   ): Promise<{ data: Credential[]; total: number }> {
-    const where = this.buildStatusWhere(status);
+    const where = this.buildListWhere(filters);
     const skip = (page - 1) * limit;
 
     const [items, total] = await Promise.all([
@@ -336,6 +337,70 @@ export class CredentialPrismaRepository implements CredentialRepository {
       data: items.map((item) => toDomain(item)),
       total,
     };
+  }
+
+  private buildListWhere(
+    filters?: CredentialListFilters,
+  ): Prisma.CredentialWhereInput | undefined {
+    const clauses: Prisma.CredentialWhereInput[] = [];
+    const statusWhere = this.buildStatusWhere(filters?.status);
+
+    if (statusWhere) {
+      clauses.push(statusWhere);
+    }
+
+    const personWhere = this.buildPersonWhere(filters);
+    if (personWhere) {
+      clauses.push({ person: personWhere });
+    }
+
+    if (clauses.length === 0) {
+      return undefined;
+    }
+
+    if (clauses.length === 1) {
+      return clauses[0];
+    }
+
+    return { AND: clauses };
+  }
+
+  private buildPersonWhere(
+    filters?: CredentialListFilters,
+  ): Prisma.PersonWhereInput | undefined {
+    const name = filters?.name?.trim();
+    const email = filters?.email?.trim();
+    const identity = filters?.identity?.trim();
+
+    if (!name && !email && !identity) {
+      return undefined;
+    }
+
+    const and: Prisma.PersonWhereInput[] = [];
+
+    if (name) {
+      and.push({
+        OR: [
+          { fullName: { contains: name, mode: "insensitive" } },
+          { firstName: { contains: name, mode: "insensitive" } },
+          { lastName: { contains: name, mode: "insensitive" } },
+        ],
+      });
+    }
+
+    if (email) {
+      and.push({
+        institutionalEmail: { contains: email, mode: "insensitive" },
+      });
+    }
+
+    if (identity) {
+      and.push({
+        identityNumber: { contains: identity, mode: "insensitive" },
+      });
+    }
+
+    return and.length === 1 ? and[0] : { AND: and };
   }
 
   private buildStatusWhere(

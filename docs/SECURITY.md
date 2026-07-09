@@ -154,7 +154,7 @@ new ValidationPipe({
 | Body JSON/form | 25 MB (env `MAX_PDF_SIZE_MB`) | `main.ts` |
 | Imagen credencial | 5 MB, solo `image/*` | `multer-options.ts` |
 | PDF correo | 25 MB, solo `application/pdf` | `pdf-multer-options.ts` |
-| Nginx proxy | 25 MB | `nginx/default.conf` |
+| Nginx proxy (Docker) | 25 MB | `frontend_credentials_21/nginx/nginx.conf` |
 
 Nombres de archivo: `timestamp-uuid.ext` (evita sobrescritura y nombres predecibles).
 

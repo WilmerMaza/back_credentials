@@ -12,9 +12,14 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "seed:credentials": "node --require ts-node/register prisma/seed-credentials.ts",
+    "seed:credentials:clear": "node --require ts-node/register prisma/seed-credentials.ts --clear",
+    "seed:credentials:local": "bash scripts/seed-credentials-local.sh",
     "seed:credential-types": "node --require ts-node/register prisma/seed-credential-types.ts",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "docker:deploy": "bash scripts/docker-fresh-deploy.sh",
+    "docker:clean": "bash scripts/docker-clean-deploy.sh",
+    "docker:migrate": "bash scripts/docker-migrate.sh"
   },
   "dependencies": {
     "@azure/identity": "^4.13.1",
@@ -43,7 +48,8 @@
     "pdfkit": "^0.19.1",
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.1.13",
-    "rxjs": "^7.8.0"
+    "rxjs": "^7.8.0",
+    "prisma": "^5.0.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
@@ -60,7 +66,6 @@
     "@types/passport": "^1.0.17",
     "@types/passport-jwt": "^4.0.1",
     "jest": "^29.7.0",
-    "prisma": "^5.0.0",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.1",
     "typescript": "^5.1.3"

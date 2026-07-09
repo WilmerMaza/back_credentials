@@ -3,20 +3,27 @@ name: credentials
 services:
   # 🔹 Backend API (Accesible visualmente en puerto 3000)
   api:
-    build: .
+    build:
+      context: .
+      args:
+        BUILD_REV: ${BUILD_REV:-dev}
+      labels:
+        - project=credentials
     image: back-credentials:latest
     container_name: api-credentials
     env_file: .env
     environment:
       NODE_ENV: production
+      POSTGRES_HOST: postgres_server
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: admin
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-https://credenciales.enap.edu.co}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://credenciales.enap.edu.co,https://credenciales.enap,http://credenciales.enap.edu.co,http://credenciales.enap}
       AUTH_COOKIE_SAMESITE: ${AUTH_COOKIE_SAMESITE:-lax}
-      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
-    command: >
-      sh -c "npx prisma migrate deploy && node dist/main.js"
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
+      API_PUBLIC_PREFIX: ${API_PUBLIC_PREFIX:-/api}
     restart: unless-stopped
-    # Solo red interna Docker; el API público es https://credenciales.enap.edu.co/api/
+    # API solo red interna. Público: :80 del contenedor frontend (/ y /api/*). Ver docs/SSL_CERTIFICATE.md
     expose:
       - "3000"
     # Descomentar solo para depuración local directa al backend:
@@ -43,6 +50,10 @@ services:
   frontend:
     build:
       context: ../frontend_credentials_21
+      args:
+        BUILD_REV: ${BUILD_REV:-dev}
+      labels:
+        - project=credentials
     image: front-credentials:latest
     container_name: frontend-credentials
     depends_on:

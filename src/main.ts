@@ -31,13 +31,24 @@ async function bootstrap() {
   app.use(json({ limit: bodyLimit }));
   app.use(urlencoded({ extended: true, limit: bodyLimit }));
   app.use(cookieParser());
+
+  const configService = app.get(ConfigService);
+  const cookieSecure = configService.get<string>('AUTH_COOKIE_SECURE') === 'true';
+
   app.use(
     helmet({
       crossOriginResourcePolicy: { policy: 'cross-origin' },
+      strictTransportSecurity: cookieSecure ? undefined : false,
+      contentSecurityPolicy: cookieSecure
+        ? undefined
+        : {
+            directives: {
+              ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+              'upgrade-insecure-requests': null,
+            },
+          },
     }),
   );
-
-  const configService = app.get(ConfigService);
   const corsOrigins = parseCorsOrigins(configService.get<string>('CORS_ORIGINS'));
 
   app.enableCors({
@@ -56,15 +67,24 @@ async function bootstrap() {
     }),
   );
 
-  const swaggerConfig = new DocumentBuilder()
+  const apiPublicPrefix = (configService.get<string>('API_PUBLIC_PREFIX') ?? '')
+    .trim()
+    .replace(/\/$/, '');
+
+  const swaggerBuilder = new DocumentBuilder()
     .setTitle('Credentials API')
     .setDescription('API para registrar y generar credenciales militares')
     .setVersion('1.0.0')
     .addApiKey(
       { type: 'apiKey', name: 'x-api-key', in: 'header' },
       'api-key',
-    )
-    .build();
+    );
+
+  if (apiPublicPrefix) {
+    swaggerBuilder.addServer(apiPublicPrefix);
+  }
+
+  const swaggerConfig = swaggerBuilder.build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document);

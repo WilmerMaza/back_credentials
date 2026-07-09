@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
@@ -16,11 +16,25 @@ interface PdfRow {
 }
 
 @Injectable()
-export class CredentialPdfGenerator {
+export class CredentialPdfGenerator implements OnModuleInit {
+  private readonly logger = new Logger(CredentialPdfGenerator.name);
+
   constructor(private readonly configService: ConfigService) {}
+
+  onModuleInit(): void {
+    const baseUrl = this.resolvePublicAppUrl();
+    if (baseUrl.includes("localhost")) {
+      this.logger.warn(
+        "PUBLIC_APP_URL no definida o apunta a localhost: el QR del PDF del backend usará una URL no pública",
+      );
+      return;
+    }
+    this.logger.log(`PDF backend: QR de verificación → ${baseUrl}/verify/...`);
+  }
 
   async generate(credential: Credential): Promise<Buffer> {
     const verifyUrl = this.buildVerifyUrl(credential);
+    this.logger.debug(`Generando PDF con QR: ${verifyUrl}`);
     const qrBuffer = await QRCode.toBuffer(verifyUrl, {
       width: 140,
       margin: 1,
@@ -30,10 +44,14 @@ export class CredentialPdfGenerator {
     return this.renderDocument(credential, qrBuffer, photoBuffer);
   }
 
+  /** URL pública del front (misma que publicAppUrl en Angular). */
+  private resolvePublicAppUrl(): string {
+    const configured = this.configService.get<string>("PUBLIC_APP_URL")?.trim();
+    return (configured || "http://localhost").replace(/\/$/, "");
+  }
+
   private buildVerifyUrl(credential: Credential): string {
-    const baseUrl = (
-      this.configService.get<string>("PUBLIC_APP_URL") ?? "http://localhost"
-    ).replace(/\/$/, "");
+    const baseUrl = this.resolvePublicAppUrl();
     const identity = encodeURIComponent(credential.person.identityNumber);
     const type = encodeURIComponent(credential.type.code);
     return `${baseUrl}/verify/${identity}?type=${type}`;

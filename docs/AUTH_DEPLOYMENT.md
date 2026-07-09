@@ -1,6 +1,6 @@
-# Autenticación — Despliegue DEV / QA / PROD
+# Autenticación y despliegue — DEV / Docker / PROD
 
-Guía de configuración para la arquitectura **HttpOnly cookies + sesiones + refresh rotativo**.
+Guía alineada con la arquitectura real del proyecto: **Angular + Nginx en Docker**, API interna en la red Docker, sin Nginx en el servidor host.
 
 ---
 
@@ -13,23 +13,47 @@ Angular **siempre** consume rutas relativas:
 /api/credentials
 ```
 
-El destino real lo resuelve:
-
-| Ambiente | Mecanismo |
-|----------|-----------|
-| **DEV** | `proxy.conf.json` de Angular (`ng serve`) |
-| **QA / PROD** | Reverse proxy (Nginx) en el mismo host del frontend |
+| Ambiente | Quién resuelve `/api` |
+|----------|------------------------|
+| **DEV** (`ng serve`) | `proxy.conf.json` → `localhost:3000` |
+| **Docker / PROD** | Nginx del contenedor `frontend-credentials` → `api:3000` |
 
 ---
 
-## DEV (localhost)
+## Arquitectura Docker (local y servidor)
+
+```
+                    ┌─────────────────────────────────────┐
+  Usuario :80       │  contenedor frontend-credentials    │
+  ───────────────►  │  Nginx                              │
+                    │    /        → Angular (SPA)         │
+                    │    /api/*   → proxy → api:3000      │
+                    └─────────────────────────────────────┘
+                                        │
+                    ┌───────────────────▼───────────────────┐
+                    │  contenedor api-credentials           │
+                    │  NestJS :3000 (solo red interna)      │
+                    └─────────────────────────────────────┘
+```
+
+- El puerto **3000 no se publica** al exterior (solo `expose` en Docker).
+- El único punto de entrada público es el puerto **80** del contenedor frontend.
+- Configuración Nginx: `frontend_credentials_21/nginx/nginx.conf`
+
+Cuando llegue HTTPS, ver [SSL_CERTIFICATE.md](./SSL_CERTIFICATE.md).
+
+---
+
+## DEV (localhost con `ng serve`)
 
 ### Frontend (`frontend_credentials_21`)
 
-```json
+```typescript
 // environment.development.ts
-{ "enap_api": "/api" }
+{ enap_api: '/api', publicAppUrl: '' }
 ```
+
+`publicAppUrl` vacío usa `window.location.origin` (útil para QR en local).
 
 ```json
 // proxy.conf.json
@@ -47,7 +71,7 @@ El destino real lo resuelve:
 npm start   # ng serve --port 4200 --proxy-config proxy.conf.json
 ```
 
-### Backend (`.env`)
+### Backend (`.env` local)
 
 ```env
 PORT=3000
@@ -61,65 +85,65 @@ CORS_ORIGINS=http://localhost:4200
 CSRF_ENABLED=true
 ```
 
-### Por qué no hay CORS en DEV
+### Por qué no hay fricción CORS en DEV
 
-El navegador ve `http://localhost:4200/api/...` (mismo origen). El proxy de Angular reenvía a `:3000` en servidor. Las cookies `HttpOnly` se emiten para `localhost` sin fricción cross-origin.
+El navegador ve `http://localhost:4200/api/...` (mismo origen). El proxy de Angular reenvía a `:3000` en el servidor.
 
 ---
 
-## QA
+## Docker (local o servidor sin SSL)
 
-### Frontend
+### Despliegue
 
-- URL pública: `https://qa.midominio.com`
-- Build: `ng build --configuration qa`
-- `environment.qa.ts`: `enap_api: '/api'`
-
-### Nginx (ejemplo)
-
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name qa.midominio.com;
-
-    root /usr/share/nginx/html;
-
-    location ^~ /api/ {
-        proxy_pass http://api:3000/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
+```bash
+cd back
+cp .env.example .env   # primera vez; ajustar secretos
+npm run docker:deploy  # o: ./scripts/docker-fresh-deploy.sh
 ```
 
-### Backend (`.env`)
+### Frontend (build producción)
+
+- `environment.ts`: `enap_api: '/api'`
+- `publicAppUrl: 'https://credenciales.enap.edu.co'` (QR del PDF)
+
+El Dockerfile del frontend copia `nginx/nginx.conf` y el build de Angular.
+
+### Backend (`.env` en Docker)
 
 ```env
 NODE_ENV=production
+DATABASE_URL=postgresql://...@postgres_server:5432/credencial_db
 AUTH_COOKIE_SAMESITE=lax
-AUTH_COOKIE_SECURE=true
-CORS_ORIGINS=https://qa.midominio.com
+AUTH_COOKIE_SECURE=false
+PUBLIC_APP_URL=https://credenciales.enap.edu.co
+CORS_ORIGINS=http://credenciales.enap.edu.co,http://credenciales.enap
 CSRF_ENABLED=true
+```
+
+`AUTH_COOKIE_SECURE=false` es correcto **mientras** el usuario acceda por HTTP (`:80`).
+
+### Verificación
+
+```bash
+curl -I http://localhost/
+curl -I http://localhost/api/docs
+curl -s http://localhost/api/auth/csrf
 ```
 
 ---
 
-## PROD
+## PROD con HTTPS
 
-Igual que QA, cambiando dominios:
+No cambiar código entre ambientes. Solo variables e infraestructura.
 
 ```env
-CORS_ORIGINS=https://app.midominio.com
+AUTH_COOKIE_SECURE=true
+AUTH_COOKIE_SAMESITE=lax
+PUBLIC_APP_URL=https://credenciales.enap.edu.co
+CORS_ORIGINS=https://credenciales.enap.edu.co,https://credenciales.enap
 ```
 
-**No cambiar código** entre QA y PROD; solo variables e infraestructura.
+Pasos detallados (proxy ENAP vs SSL en Docker): **[SSL_CERTIFICATE.md](./SSL_CERTIFICATE.md)**.
 
 ---
 
@@ -134,7 +158,7 @@ CORS_ORIGINS=https://app.midominio.com
 ### Atributos
 
 - **HttpOnly** (auth): JS no puede leer → mitiga XSS.
-- **Secure**: obligatorio en QA/PROD (HTTPS).
+- **Secure**: obligatorio cuando el usuario accede por HTTPS (`AUTH_COOKIE_SECURE=true`).
 - **SameSite=lax**: suficiente con same-origin `/api`.
 - **Path** en refresh: limita envío del refresh solo al endpoint de renovación.
 
@@ -179,16 +203,6 @@ GET  /api/auth/me    → AuthState
 Fallo → logout → /login
 ```
 
-### Cambio de contraseña
-
-```
-POST /api/auth/change-password
-→ bcrypt nuevo hash
-→ revokeAllSessions
-→ clear cookies
-→ redirect login
-```
-
 ### CSRF (mutaciones)
 
 ```
@@ -196,65 +210,72 @@ GET /api/auth/csrf → { csrfToken } + cookie csrf_token
 POST /api/credentials → header X-CSRF-Token === cookie
 ```
 
+Angular usa `withCredentials: true` en todas las peticiones (`EnapApi`).
+
+---
+
+## Headers de proxy (Nginx Docker)
+
+El Nginx del contenedor frontend reenvía al API:
+
+```nginx
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $forwarded_proto;
+proxy_set_header X-Forwarded-Host $host;
+```
+
+NestJS tiene `trust proxy: 1` en `main.ts`.
+
+Si un proxy externo (ENAP) termina SSL, debe enviar `X-Forwarded-Proto: https` hacia el puerto 80 del contenedor.
+
 ---
 
 ## Checklist despliegue
 
-1. `npx prisma migrate deploy`
-2. `JWT_SECRET` ≥ 32 caracteres aleatorios
-3. `AUTH_COOKIE_SECURE=true` + HTTPS
-4. `CORS_ORIGINS` con dominio exacto del frontend
-5. `CSRF_ENABLED=true`
-6. Nginx: `proxy_set_header X-Forwarded-Proto $scheme`
-7. Angular: `enap_api: '/api'` en todos los environments
+1. Red Docker `db_credencial_back-network` activa (PostgreSQL levantado)
+2. `npx prisma migrate deploy` (automático al iniciar contenedor `api`)
+3. `JWT_SECRET` ≥ 32 caracteres aleatorios
+4. `AUTH_COOKIE_SECURE` acorde al protocolo (false sin HTTPS, true con HTTPS)
+5. `PUBLIC_APP_URL` = URL pública del front (QR en PDF)
+6. Angular: `enap_api: '/api'` en todos los environments
+7. `CSRF_ENABLED=true`
 8. Configurar `ADMIN_USER_IDS` si se usa panel admin de sesiones
 
 ---
 
 ## Dominio credenciales.enap.edu.co
 
-### Arquitectura correcta
+### Correcto
 
 ```
-Usuario → https://credenciales.enap.edu.co
-              │
-              ├─ /           → Angular (nginx frontend Docker)
-              └─ /api/*      → proxy interno → api:3000 (NestJS)
+https://credenciales.enap.edu.co/           → Angular
+https://credenciales.enap.edu.co/api/*    → NestJS (proxy interno Docker)
 ```
 
-**No exponer** `https://credenciales.enap.edu.co:3000` al público. El backend solo se consume vía `/api`.
+### Incorrecto
 
-### Verificación rápida
-
-```bash
-curl -I https://credenciales.enap.edu.co/
-curl -I https://credenciales.enap.edu.co/api/docs
-curl https://credenciales.enap.edu.co/api/auth/csrf
+```
+https://credenciales.enap.edu.co:3000/      ← API no debe ser público
+Proxy ENAP → :3000 solo para /api           ← rompe la arquitectura
 ```
 
-Los tres deben responder (200 o 301 en `/`).
+### Si el front carga pero `/api` falla
 
-### Si el front carga pero /api falla
-
-1. **Proxy institucional** envía solo `/` al Docker y no `/api` → reenviar **todo** el tráfico al puerto 80 del contenedor `frontend-credentials` (ver `nginx/credenciales.enap.edu.co.conf`).
-2. Reconstruir front tras cambiar nginx:
+1. Confirmar que **todo** el tráfico llega al puerto **80** del contenedor `frontend-credentials`.
+2. Reconstruir frontend si cambió `nginx/nginx.conf`:
    ```bash
-   cd back && docker compose build frontend && docker compose up -d
+   cd back && docker compose build frontend && docker compose up -d frontend
    ```
-3. Variables en `.env`:
-   ```env
-   PUBLIC_APP_URL=https://credenciales.enap.edu.co
-   CORS_ORIGINS=https://credenciales.enap.edu.co
-   AUTH_COOKIE_SAMESITE=lax
-   AUTH_COOKIE_SECURE=true
-   ```
+3. Revisar variables en `.env` (ver sección PROD con HTTPS).
 
 ---
 
 ## Migración desde JWT en localStorage
 
-Este proyecto **ya no** almacena tokens en el cliente. Si existía código legado:
+Este proyecto **no** almacena tokens en el cliente:
 
-- Eliminar `localStorage` / `sessionStorage` para tokens
-- Usar `withCredentials: true` (centralizado en `EnapApi`)
-- No enviar `Authorization: Bearer` desde Angular
+- Sin `localStorage` / `sessionStorage` para tokens
+- `withCredentials: true` en `EnapApi`
+- Sin header `Authorization: Bearer` desde Angular

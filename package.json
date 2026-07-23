@@ -19,7 +19,9 @@
     "test:watch": "jest --watch",
     "docker:deploy": "bash scripts/docker-fresh-deploy.sh",
     "docker:clean": "bash scripts/docker-clean-deploy.sh",
-    "docker:migrate": "bash scripts/docker-migrate.sh"
+    "docker:migrate": "bash scripts/docker-migrate.sh",
+    "docker:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build api",
+    "docker:dev:down": "docker compose -f docker-compose.yml -f docker-compose.dev.yml down"
   },
   "dependencies": {
     "@azure/identity": "^4.13.1",

@@ -17,13 +17,13 @@ const prisma = new PrismaClient();
 const credentialTypes = [
   {
     code: "militar",
-    name: "Militar",
+    name: "PERSONAL MILITAR",
     description: "Credencial para personal militar",
     schema: militarCredentialTypeSchema,
   },
   {
     code: "civil",
-    name: "Personal Civil",
+    name: "PERSONAL CIVIL",
     description: "Credencial para personal civil",
     schema: {
       fields: [
@@ -46,85 +46,13 @@ const credentialTypes = [
   },
   {
     code: "alumnos_baena",
-    name: "Alumnos BAENA",
+    name: "ALUMNOS BAENA",
     description: "Credencial para alumnos BAENA",
     schema: alumnosBaenaCredentialTypeSchema,
   },
 ];
 
-async function retireInterEscuelasTypes(): Promise<void> {
-  const alumnosBaena = await prisma.credentialType.findUnique({
-    where: { code: "alumnos_baena" },
-  });
-
-  if (!alumnosBaena) {
-    return;
-  }
-
-  for (const code of ["inter_escuelas", "inter-escuelas"]) {
-    const legacy = await prisma.credentialType.findUnique({
-      where: { code },
-    });
-
-    if (!legacy) {
-      continue;
-    }
-
-    const moved = await prisma.credential.updateMany({
-      where: { credentialTypeId: legacy.id },
-      data: { credentialTypeId: alumnosBaena.id },
-    });
-
-    await prisma.credentialType.delete({ where: { id: legacy.id } });
-    console.log(
-      `Retired ${code}: ${moved.count} credential(s) moved to alumnos_baena`,
-    );
-  }
-}
-
-async function migrateCadetesToAlumnosBaena(): Promise<void> {
-  const cadetes = await prisma.credentialType.findUnique({
-    where: { code: "cadetes" },
-  });
-
-  if (!cadetes) {
-    return;
-  }
-
-  const existingAlumnosBaena = await prisma.credentialType.findUnique({
-    where: { code: "alumnos_baena" },
-  });
-
-  if (existingAlumnosBaena) {
-    await prisma.credential.updateMany({
-      where: { credentialTypeId: cadetes.id },
-      data: { credentialTypeId: existingAlumnosBaena.id },
-    });
-    await prisma.credentialType.delete({ where: { id: cadetes.id } });
-    console.log(
-      "Merged credentials from cadetes into existing alumnos_baena type",
-    );
-    return;
-  }
-
-  await prisma.credentialType.update({
-    where: { id: cadetes.id },
-    data: {
-      code: "alumnos_baena",
-      name: "Alumnos BAENA",
-      description: "Credencial para alumnos BAENA",
-      schema: alumnosBaenaCredentialTypeSchema as unknown as Prisma.InputJsonValue,
-    },
-  });
-  console.log(
-    "Migrated cadetes → alumnos_baena (same type id, credentials unchanged)",
-  );
-}
-
 async function main() {
-  await retireInterEscuelasTypes();
-  await migrateCadetesToAlumnosBaena();
-
   for (const type of credentialTypes) {
     await prisma.credentialType.upsert({
       where: { code: type.code },

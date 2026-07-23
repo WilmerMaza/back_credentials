@@ -62,7 +62,7 @@ Fuente de verdad en código:
 | Archivo | Rol |
 |---------|-----|
 | `src/credentials/domain/credential-type-schema.ts` | Contrato TypeScript + comentarios por propiedad |
-| `src/credentials/domain/credential-type-schemas.ts` | Catálogos por tipo (`militar`, `cadetes`) |
+| `src/credentials/domain/credential-type-schemas.ts` | Catálogos por tipo (`militar`, `alumnos_baena`) |
 | `prisma/seed-credential-types.ts` | Inyecta schemas en BD (`npm run seed:credential-types`) |
 
 ### Tipos soportados
@@ -205,7 +205,7 @@ Cada `CredentialType` puede declarar campos dependientes en su `schema`. El fron
 }
 ```
 
-### Ejemplo JSON cadetes (regla Aspirante)
+### Ejemplo JSON alumnos_baena (regla Aspirante)
 
 ```json
 {
@@ -235,9 +235,9 @@ Cada `CredentialType` puede declarar campos dependientes en su `schema`. El fron
 
 Si `grado = aspirante`, el API devuelve `defaultValueWhen` para preseleccionar **Binney** y **1.1**; `autoValueWhen` garantiza esos valores al guardar.
 
-### Migración inter-escuelas → cadetes
+### Tipos activos
 
-El seed renombra el tipo `inter-escuelas` a `cadetes` conservando el mismo `id` y las credenciales vinculadas. La metadata histórica (`force`, `sport`, `course`) no se transforma; solo aplica el nuevo schema en registros nuevos o al editar.
+Los tipos canónicos son `militar`, `civil` y `alumnos_baena`.
 
 ### Compatibilidad legacy
 
@@ -335,7 +335,7 @@ Cuando el envío incluye **todos los campos obligatorios + imagen**, el backend 
 npm run seed:credential-types
 ```
 
-Crea/actualiza: `militar`, `civil`, `cadetes` con sus schemas. Migra `inter-escuelas` → `cadetes` si existe en BD.
+Crea/actualiza: `militar`, `civil`, `alumnos_baena` con sus schemas.
 
 ## Agregar un nuevo tipo
 

@@ -258,7 +258,7 @@ export const militarCredentialTypeSchema: CredentialTypeSchema = {
 };
 
 /**
- * Alumnos BAENA (antes cadetes).
+ * Alumnos BAENA.
  *
  * Cascada: grado → compañía → curso
  * (compañía y curso sin opciones hasta completar los campos obligatorios previos)

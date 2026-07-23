@@ -3,12 +3,14 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   NotFoundException,
   Param,
   Patch,
   Post,
   Query,
   Req,
+  StreamableFile,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -19,6 +21,7 @@ import {
   ApiCreatedResponse,
   ApiConsumes,
   ApiOkResponse,
+  ApiProduces,
   ApiTags,
 } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
@@ -41,6 +44,7 @@ import { CredentialAuditLogResponseDto } from "../application/dto/credential-aud
 import { GetCredentialQuery } from "../application/queries/get-credential.query";
 import { GetCredentialAuditLogsQuery } from "../application/queries/get-credential-audit-logs.query";
 import { ListCredentialsQuery } from "../application/queries/list-credentials.query";
+import { CredentialPdfGenerator } from "../application/services/credential-pdf.generator";
 import { AuditActor, CredentialAuditLogEntry } from "../domain/credential-audit.types";
 import {
   CreateCredentialData,
@@ -73,6 +77,7 @@ export class CredentialsController {
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
     private readonly localFileService: LocalFileService,
+    private readonly pdfGenerator: CredentialPdfGenerator,
   ) {}
 
   @Throttle(THROTTLE_WRITE)
@@ -264,6 +269,31 @@ export class CredentialsController {
       limit: limitNumber,
       totalPages: Math.ceil(result.total / limitNumber),
     };
+  }
+
+  @SkipThrottle()
+  @Get(":id/pdf")
+  @ApiProduces("application/pdf")
+  @ApiOkResponse({
+    description: "PDF de la credencial generado en el backend",
+    schema: { type: "string", format: "binary" },
+  })
+  @Header("Content-Type", "application/pdf")
+  async downloadPdf(@Param("id") id: string): Promise<StreamableFile> {
+    const found = await this.queryBus.execute(new GetCredentialQuery(id));
+    if (!found) {
+      throw new NotFoundException("Credential not found");
+    }
+
+    const pdfBuffer = await this.pdfGenerator.generate(found);
+    const identity = found.person.identityNumber?.trim() || found.id;
+    const filename = `credencial-${identity}.pdf`;
+
+    return new StreamableFile(pdfBuffer, {
+      type: "application/pdf",
+      disposition: `attachment; filename="${filename}"`,
+      length: pdfBuffer.length,
+    });
   }
 
   @SkipThrottle()

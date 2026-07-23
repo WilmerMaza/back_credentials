@@ -2,6 +2,62 @@
 
 Guía operativa para levantar **PostgreSQL**, **API (NestJS)** y **frontend (Angular + Nginx)** sin problemas de caché, red externa ni migraciones pendientes.
 
+---
+
+## Forma de trabajo (obligatoria)
+
+Hay **dos modos**. No mezclarlos.
+
+### 1. Desarrollo diario (código Angular / API local)
+
+El frontend **no** va en Docker. Así `ng serve` recarga solo y **no hace falta reconstruir la imagen** por cada cambio de UI.
+
+```text
+Navegador :4200  →  Angular (npm start en tu PC)
+                      └─ proxy /api → localhost:3000
+Puerto :3000     →  API (Docker)
+Red Docker       →  PostgreSQL
+```
+
+**Pasos (una vez al día / al encender):**
+
+```bash
+# A) Base de datos (si no está arriba)
+cd ../db_credencial && docker compose up -d
+
+# B) Solo la API en Docker (expone :3000). NO levanta el frontend nginx.
+cd ../back
+docker compose down          # por si tenías el stack de producción
+npm run docker:dev
+
+# C) Frontend en tu máquina
+cd ../frontend_credentials_21
+npm install                  # solo la primera vez o si cambió package.json
+npm start                    # http://localhost:4200
+```
+
+| Qué cambias | Qué hacés |
+|-------------|-----------|
+| HTML / TS / CSS Angular | Nada: se recarga solo |
+| Dependencias frontend (`package.json`) | `npm install` otra vez |
+| Código Nest / Prisma en el contenedor | `npm run docker:dev` (rebuild de la API) |
+| Apagar desarrollo | `Ctrl+C` en Angular + `cd back && npm run docker:dev:down` |
+
+Abrí siempre **http://localhost:4200**, no el puerto 80.
+
+### 2. Producción / servidor (todo en Docker)
+
+Build estático de Angular + nginx. **Sí** hay que rebuild cuando cambia el frontend.
+
+```bash
+cd ../back
+npm run docker:clean    # o docker:deploy
+```
+
+App en **http://localhost** (puerto 80). Este modo es para deploy, no para editar Angular a diario.
+
+---
+
 ## Arquitectura
 
 ```
@@ -56,9 +112,11 @@ Desde la carpeta `back`:
 
 | Comando | Cuándo usarlo |
 |---------|----------------|
-| `npm run docker:clean` | **Build 100% limpio**: sin caché, imágenes nuevas, contenedores recreados. Usar tras cambios en código, frontend o migraciones. |
-| `npm run docker:deploy` | Despliegue rápido con caché (día a día). |
-| `npm run docker:migrate` | Solo aplicar migraciones pendientes (recrea el API o usa contenedor temporal). |
+| `npm run docker:dev` | **Desarrollo**: solo API en `:3000`. Angular va con `npm start` en el frontend. |
+| `npm run docker:dev:down` | Apagar el stack de desarrollo. |
+| `npm run docker:clean` | **Producción / servidor**: build limpio API + frontend nginx. |
+| `npm run docker:deploy` | Despliegue rápido con caché (servidor). |
+| `npm run docker:migrate` | Solo aplicar migraciones pendientes. |
 
 Equivalentes directos:
 

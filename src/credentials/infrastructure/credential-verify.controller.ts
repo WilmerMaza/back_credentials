@@ -14,6 +14,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { Throttle } from "@nestjs/throttler";
 import { THROTTLE_AUTH } from "../../common/config/throttle.config";
+import { normalizeCredentialTypeCode } from "../domain/credential-type-schema";
 import { PublicCredentialVerificationDto } from "../application/dto/public-credential-verification.dto";
 import { VerifyCredentialQueryDto } from "../application/dto/verify-credential-query.dto";
 import { VerifyCredentialQuery } from "../application/queries/verify-credential.query";
@@ -30,7 +31,10 @@ export class CredentialVerifyController {
     @Query() query: VerifyCredentialQueryDto,
   ): Promise<PublicCredentialVerificationDto> {
     return this.queryBus.execute(
-      new VerifyCredentialQuery(query.identity.trim(), query.type.trim()),
+      new VerifyCredentialQuery(
+        query.identity.trim(),
+        normalizeCredentialTypeCode(query.type),
+      ),
     );
   }
 

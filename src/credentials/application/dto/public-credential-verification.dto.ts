@@ -1,6 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Credential } from "../../domain/credential.entity";
-import { CredentialMetadata } from "../../domain/credential-type-schema";
+import {
+  CredentialMetadata,
+  normalizeCredentialTypeCode,
+  resolveCredentialTypeName,
+} from "../../domain/credential-type-schema";
 
 export type VerificationOutcome =
   | "VALID"
@@ -143,8 +147,11 @@ function buildSnapshot(
     typeIdentity: credential.person.typeIdentity,
     birthDate: credential.person.birthDate,
     institutionalEmail: credential.person.institutionalEmail ?? undefined,
-    credentialTypeCode: credential.type.code,
-    credentialTypeName: credential.type.name,
+    credentialTypeCode: normalizeCredentialTypeCode(credential.type.code),
+    credentialTypeName: resolveCredentialTypeName(
+      credential.type.code,
+      credential.type.name,
+    ),
     metadata: credential.metadata,
     imageFilename,
     status: credential.status,

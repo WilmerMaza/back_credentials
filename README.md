@@ -1,6 +1,6 @@
 # API de Credenciales — ENAP
 
-API REST para el registro, consulta y gestión de credenciales digitales (personal militar, civil e inter-escuelas). Incluye autenticación JWT, formularios dinámicos por tipo de credencial, envío de correo vía Azure/Exchange y almacenamiento de imágenes.
+API REST para el registro, consulta y gestión de credenciales digitales (personal militar, civil y alumnos BAENA). Incluye autenticación JWT, formularios dinámicos por tipo de credencial, envío de correo vía Azure/Exchange y almacenamiento de imágenes.
 
 ---
 
@@ -134,7 +134,7 @@ npm run prisma:generate
 # 3. Migraciones
 npm run prisma:migrate
 
-# 4. Tipos de credencial (militar, civil, inter-escuelas)
+# 4. Tipos de credencial (militar, civil, alumnos_baena)
 npm run seed:credential-types
 
 # 5. Servidor en modo watch
@@ -589,7 +589,7 @@ back/
 | `npm run start:prod` | Ejecuta build de producción |
 | `npm run prisma:generate` | Genera cliente Prisma |
 | `npm run prisma:migrate` | Migraciones en desarrollo |
-| `npm run seed:credential-types` | Seed tipos militar/civil/inter-escuelas |
+| `npm run seed:credential-types` | Seed tipos militar/civil/alumnos_baena |
 | `npm run seed:credentials` | Seed credenciales de prueba (`npm run seed:credentials -- 50`) |
 
 ---

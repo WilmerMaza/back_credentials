@@ -11,6 +11,16 @@ export type CredentialStatus = (typeof CREDENTIAL_STATUSES)[number];
 
 export const DEFAULT_CREDENTIAL_STATUS: CredentialStatus = "PENDING";
 
+/** Etiquetas canónicas de estado para UI/PDF (siempre MAYÚSCULAS). */
+export const CANONICAL_CREDENTIAL_STATUS_NAMES: Record<CredentialStatus, string> = {
+  ACTIVE: "ACTIVO",
+  PENDING: "PENDIENTE",
+  EXPIRED: "EXPIRADO",
+  TRANSFERRED: "TRASLADADO",
+  REVOKED: "REVOCADO",
+  SUSPENDED: "SUSPENDIDO",
+};
+
 const STATUS_ALIASES: Record<string, CredentialStatus> = {
   ACTIVE: "ACTIVE",
   ACTIVO: "ACTIVE",
@@ -50,6 +60,26 @@ export function normalizeCredentialStatus(
   }
 
   return normalized;
+}
+
+export function resolveCredentialStatusName(
+  status?: string | null,
+  fallback?: string | null,
+): string {
+  const key = String(status ?? "")
+    .trim()
+    .toUpperCase();
+  const canonical =
+    STATUS_ALIASES[key] ??
+    (CREDENTIAL_STATUSES.includes(key as CredentialStatus)
+      ? (key as CredentialStatus)
+      : undefined);
+
+  if (canonical) {
+    return CANONICAL_CREDENTIAL_STATUS_NAMES[canonical];
+  }
+
+  return (fallback?.trim() || key || "—").toUpperCase();
 }
 
 /** Valores del enum Prisma para filtrar por estado (acepta alias del front). */

@@ -26,6 +26,23 @@ function parseRefreshTtlMs(config: ConfigService): number {
   return (Number.isFinite(days) ? days : 7) * 24 * 60 * 60 * 1000;
 }
 
+/** Prefijo público visto por el navegador (ej. `/api`). Vacío si el API se expone en la raíz. */
+export function getApiPublicPrefix(config: ConfigService): string {
+  const raw = (config.get<string>("API_PUBLIC_PREFIX") ?? "").trim().replace(/\/$/, "");
+  if (!raw || raw === "/") {
+    return "";
+  }
+  return raw.startsWith("/") ? raw : `/${raw}`;
+}
+
+/**
+ * Path de la cookie refresh según lo que ve el navegador.
+ * Con proxy/nginx: `/api/auth/refresh`. Sin prefijo: `/auth/refresh`.
+ */
+export function getRefreshCookiePath(config: ConfigService): string {
+  return `${getApiPublicPrefix(config)}/auth/refresh`;
+}
+
 function resolveSecure(config: ConfigService, sameSite: CookieOptions["sameSite"]): boolean {
   const explicit = config.get<string>("AUTH_COOKIE_SECURE");
   if (explicit === "true") return true;
@@ -61,7 +78,7 @@ export function getAccessCookieOptions(config: ConfigService): CookieOptions {
 export function getRefreshCookieOptions(config: ConfigService): CookieOptions {
   return {
     ...baseCookieOptions(config),
-    path: "/auth/refresh",
+    path: getRefreshCookiePath(config),
     maxAge: parseRefreshTtlMs(config),
   };
 }

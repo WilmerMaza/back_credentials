@@ -7,7 +7,7 @@ export class VerifyCredentialQueryDto {
   @IsNotEmpty()
   identity!: string;
 
-  @ApiProperty({ example: "inter-escuelas" })
+  @ApiProperty({ example: "alumnos_baena" })
   @IsString()
   @IsNotEmpty()
   type!: string;

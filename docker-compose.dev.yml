@@ -1,0 +1,14 @@
+# Override SOLO para desarrollo local (Angular fuera de Docker).
+# No uses este archivo para desplegar en servidor.
+#
+# Uso:  npm run docker:dev   → solo API en :3000
+# App:  cd ../frontend_credentials_21 && npm start  → http://localhost:4200
+
+services:
+  api:
+    ports: !override
+      - "3000:3000"
+    environment:
+      # Orígenes locales para cuando el proxy no aplique / cookies
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:4200}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4200,http://127.0.0.1:4200,https://credenciales.enap.edu.co,https://credenciales.enap,http://credenciales.enap.edu.co,http://credenciales.enap}

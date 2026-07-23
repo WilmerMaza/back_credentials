@@ -79,7 +79,7 @@ Se registra como `APP_GUARD` global, por lo que se evalúa **antes** de llegar a
 | Cookie | HttpOnly | Path | TTL |
 |--------|----------|------|-----|
 | `access_token` | sí | `/` | 15 min (`JWT_ACCESS_TTL`) |
-| `refresh_token` | sí | `/auth/refresh` | 7–30 días |
+| `refresh_token` | sí | `{API_PUBLIC_PREFIX}/auth/refresh` (ej. `/api/auth/refresh`) | 7–30 días |
 | `csrf_token` | no | `/` | 24 h |
 
 ### Sesiones (PostgreSQL)
@@ -100,6 +100,7 @@ Double-submit: cookie `csrf_token` + header `X-CSRF-Token` en mutaciones (POST/P
 ```env
 JWT_ACCESS_TTL=15m
 REFRESH_TOKEN_TTL_DAYS=7
+API_PUBLIC_PREFIX=/api
 AUTH_COOKIE_SAMESITE=lax
 AUTH_COOKIE_SECURE=false
 CORS_ORIGINS=http://localhost:4200

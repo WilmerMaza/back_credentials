@@ -1,5 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { CredentialType } from "../../domain/credential.entity";
+import {
+  normalizeCredentialTypeCode,
+  resolveCredentialTypeName,
+} from "../../domain/credential-type-schema";
 
 export class CredentialTypeResponseDto {
   @ApiProperty()
@@ -8,7 +12,7 @@ export class CredentialTypeResponseDto {
   @ApiProperty({ example: "militar" })
   code!: string;
 
-  @ApiProperty({ example: "Militar" })
+  @ApiProperty({ example: "PERSONAL MILITAR" })
   name!: string;
 
   @ApiPropertyOptional()
@@ -57,10 +61,11 @@ export class CredentialTypeResponseDto {
   schema!: Record<string, unknown>;
 
   static fromDomain(type: CredentialType): CredentialTypeResponseDto {
+    const code = normalizeCredentialTypeCode(type.code);
     return {
       id: type.id,
-      code: type.code,
-      name: type.name,
+      code,
+      name: resolveCredentialTypeName(code, type.name),
       description: type.description ?? undefined,
       schema: type.schema,
     };

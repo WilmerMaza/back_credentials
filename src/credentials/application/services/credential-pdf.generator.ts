@@ -9,6 +9,7 @@ import { Credential } from "../../domain/credential.entity";
 import type {
   CredentialTypeSchema,
 } from "../../domain/credential-type-schema";
+import { resolveCredentialStatusName } from "../../domain/credential-status";
 
 interface PdfRow {
   label: string;
@@ -288,8 +289,8 @@ export class CredentialPdfGenerator implements OnModuleInit {
 
   private getCredentialTitle(typeCode: string): string {
     const normalized = typeCode.trim().toLowerCase();
-    if (normalized.includes("cadete") || normalized.includes("inter")) {
-      return "CREDENCIAL CADETES";
+    if (normalized.includes("baena")) {
+      return "CREDENCIAL ALUMNOS BAENA";
     }
     if (normalized.includes("civil")) {
       return "CREDENCIAL PERSONAL CIVIL";
@@ -298,20 +299,7 @@ export class CredentialPdfGenerator implements OnModuleInit {
   }
 
   private getStatusLabel(status: Credential["status"]): string {
-    switch (status) {
-      case "ACTIVE":
-        return "Activo";
-      case "PENDING":
-        return "Pendiente";
-      case "EXPIRED":
-        return "Expirado";
-      case "REVOKED":
-        return "Revocado";
-      case "SUSPENDED":
-        return "Suspendido";
-      default:
-        return status;
-    }
+    return resolveCredentialStatusName(status);
   }
 }
 

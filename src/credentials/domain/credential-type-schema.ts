@@ -143,12 +143,31 @@ export const LEGACY_METADATA_ALIASES = {
 
 /** Códigos de tipo legacy aceptados en escritura. */
 export const LEGACY_CREDENTIAL_TYPE_CODES: Record<string, string> = {
-  cadetes: "alumnos_baena",
-  "inter-escuelas": "alumnos_baena",
-  inter_escuelas: "alumnos_baena",
+  "alumnos-baena": "alumnos_baena",
+};
+
+/** Nombres canónicos persistidos / expuestos por API (siempre MAYÚSCULAS). */
+export const CANONICAL_CREDENTIAL_TYPE_NAMES: Record<string, string> = {
+  militar: "PERSONAL MILITAR",
+  civil: "PERSONAL CIVIL",
+  alumnos_baena: "ALUMNOS BAENA",
 };
 
 export function normalizeCredentialTypeCode(code: string): string {
-  const normalized = code.trim().toLowerCase();
-  return LEGACY_CREDENTIAL_TYPE_CODES[normalized] ?? normalized;
+  const normalized = code.trim().toLowerCase().replace(/-/g, "_");
+  return (
+    LEGACY_CREDENTIAL_TYPE_CODES[code.trim().toLowerCase()] ??
+    LEGACY_CREDENTIAL_TYPE_CODES[normalized] ??
+    normalized
+  );
+}
+
+export function resolveCredentialTypeName(
+  code: string,
+  fallback?: string | null,
+): string {
+  const canonical = normalizeCredentialTypeCode(code);
+  const name =
+    CANONICAL_CREDENTIAL_TYPE_NAMES[canonical] ?? fallback?.trim() ?? canonical;
+  return name.toUpperCase();
 }

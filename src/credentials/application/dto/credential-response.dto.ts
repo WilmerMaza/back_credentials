@@ -1,6 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Credential } from "../../domain/credential.entity";
-import { CredentialMetadata } from "../../domain/credential-type-schema";
+import {
+  CredentialMetadata,
+  normalizeCredentialTypeCode,
+  resolveCredentialTypeName,
+} from "../../domain/credential-type-schema";
 import { CREDENTIAL_STATUSES } from "../../domain/credential-status";
 
 export class CredentialResponseDto {
@@ -76,8 +80,11 @@ export class CredentialResponseDto {
       metadata: credential.metadata,
       birthDate: credential.person.birthDate,
       institutionalEmail: credential.person.institutionalEmail ?? "",
-      credentialTypeCode: credential.type.code,
-      credentialTypeName: credential.type.name,
+      credentialTypeCode: normalizeCredentialTypeCode(credential.type.code),
+      credentialTypeName: resolveCredentialTypeName(
+        credential.type.code,
+        credential.type.name,
+      ),
       imagePath: credential.imagePath ?? "",
       status: credential.status,
       expirationDate: credential.expirationDate ?? undefined,

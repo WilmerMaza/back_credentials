@@ -79,6 +79,7 @@ NODE_ENV=development
 JWT_SECRET=<secreto-32-chars>
 JWT_ACCESS_TTL=15m
 REFRESH_TOKEN_TTL_DAYS=7
+API_PUBLIC_PREFIX=/api
 AUTH_COOKIE_SAMESITE=lax
 AUTH_COOKIE_SECURE=false
 CORS_ORIGINS=http://localhost:4200
@@ -152,7 +153,7 @@ Pasos detallados (proxy ENAP vs SSL en Docker): **[SSL_CERTIFICATE.md](./SSL_CER
 | Cookie | HttpOnly | Path | TTL | Rol |
 |--------|----------|------|-----|-----|
 | `access_token` | sí | `/` | 15 min | JWT access |
-| `refresh_token` | sí | `/auth/refresh` | 7–30 días | Refresh opaco (hash en BD) |
+| `refresh_token` | sí | `{API_PUBLIC_PREFIX}/auth/refresh` (ej. `/api/auth/refresh`) | 7–30 días | Refresh opaco (hash en BD) |
 | `csrf_token` | **no** | `/` | 24 h | Double-submit CSRF |
 
 ### Atributos
@@ -160,7 +161,7 @@ Pasos detallados (proxy ENAP vs SSL en Docker): **[SSL_CERTIFICATE.md](./SSL_CER
 - **HttpOnly** (auth): JS no puede leer → mitiga XSS.
 - **Secure**: obligatorio cuando el usuario accede por HTTPS (`AUTH_COOKIE_SECURE=true`).
 - **SameSite=lax**: suficiente con same-origin `/api`.
-- **Path** en refresh: limita envío del refresh solo al endpoint de renovación.
+- **Path** en refresh: `{API_PUBLIC_PREFIX}/auth/refresh` (ej. `/api/auth/refresh`). Debe coincidir con la URL del navegador; si no, la cookie no se envía y la sesión cae al vencer el access (~15 min).
 
 ---
 

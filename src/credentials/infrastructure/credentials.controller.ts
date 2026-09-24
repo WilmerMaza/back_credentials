@@ -27,7 +27,7 @@ import {
 import { FileInterceptor } from "@nestjs/platform-express";
 import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { normalizePersonData } from "../../common/utils/person-data.normalizer";
-import { THROTTLE_WRITE } from "../../common/config/throttle.config";
+import { THROTTLE_WRITE, THROTTLE_MAIL } from "../../common/config/throttle.config";
 import { JwtAuthGuard } from "../../auth/infrastructure/guards/jwt-auth.guard";
 import { CreateCredentialCommand } from "../application/commands/create-credential.command";
 import { UpdateCredentialCommand } from "../application/commands/update-credential.command";
@@ -45,6 +45,7 @@ import { GetCredentialQuery } from "../application/queries/get-credential.query"
 import { GetCredentialAuditLogsQuery } from "../application/queries/get-credential-audit-logs.query";
 import { ListCredentialsQuery } from "../application/queries/list-credentials.query";
 import { CredentialPdfGenerator } from "../application/services/credential-pdf.generator";
+import { CredentialNotificationService } from "../application/services/credential-notification.service";
 import { AuditActor, CredentialAuditLogEntry } from "../domain/credential-audit.types";
 import {
   CreateCredentialData,
@@ -78,6 +79,7 @@ export class CredentialsController {
     private readonly queryBus: QueryBus,
     private readonly localFileService: LocalFileService,
     private readonly pdfGenerator: CredentialPdfGenerator,
+    private readonly notificationService: CredentialNotificationService,
   ) {}
 
   @Throttle(THROTTLE_WRITE)
@@ -294,6 +296,46 @@ export class CredentialsController {
       disposition: `attachment; filename="${filename}"`,
       length: pdfBuffer.length,
     });
+  }
+
+  /**
+   * Reenvía por correo el mismo PDF oficial (PDFKit) que descarga y registro.
+   */
+  @Throttle(THROTTLE_MAIL)
+  @Post(":id/share")
+  @ApiOkResponse({
+    description: "Credencial enviada al correo institucional",
+    schema: {
+      example: {
+        success: true,
+        message: "Correo enviado correctamente",
+        to: "usuario@enap.edu.co",
+      },
+    },
+  })
+  async shareCredential(
+    @Param("id") id: string,
+  ): Promise<{ success: true; message: string; to: string }> {
+    const found = await this.queryBus.execute(new GetCredentialQuery(id));
+    if (!found) {
+      throw new NotFoundException("Credential not found");
+    }
+
+    try {
+      const to = await this.notificationService.sendCredentialEmail(found);
+      return {
+        success: true,
+        message: "Correo enviado correctamente",
+        to,
+      };
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === "NO_INSTITUTIONAL_EMAIL") {
+        throw new BadRequestException(
+          "Esta credencial no tiene un correo institucional registrado",
+        );
+      }
+      throw error;
+    }
   }
 
   @SkipThrottle()

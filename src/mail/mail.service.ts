@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -105,11 +106,27 @@ export class MailService implements OnModuleInit {
       });
     } catch (error: unknown) {
       this.logger.error("Error enviando correo via SMTP OAuth2", error);
-      const err = error as { code?: string; responseCode?: number };
+      const err = error as {
+        code?: string;
+        responseCode?: number;
+        message?: string;
+        response?: string;
+      };
+      const detail = `${err.message ?? ""} ${err.response ?? ""}`.toLowerCase();
 
       if (err.code === "EAUTH" || err.responseCode === 535) {
         throw new InternalServerErrorException(
           "Credenciales de Azure inválidas o permisos SMTP insuficientes (requiere SMTP.Send en la app registrada).",
+        );
+      }
+
+      if (
+        detail.includes("rfc 2606") ||
+        detail.includes("reserved") ||
+        detail.includes("recipients were rejected")
+      ) {
+        throw new BadRequestException(
+          "El correo institucional no es válido para envío (dominio de prueba o rechazado por el servidor SMTP).",
         );
       }
 
